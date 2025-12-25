@@ -1,3 +1,5 @@
+export const runtime = "edge";
+
 import { NextResponse } from "next/server";
 import { gsCall, requireMe } from "@/lib/gs-gateway";
 
@@ -24,3 +26,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: e?.message || "Hata" }, { status: 401 });
   }
 }
+s

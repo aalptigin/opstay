@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { gsCall, requireMe } from "@/lib/gs-gateway";
+export const runtime = "edge";
 
 export async function POST(req: Request) {
   try {

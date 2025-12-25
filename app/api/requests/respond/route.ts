@@ -1,3 +1,5 @@
+export const runtime = "edge";
+
 import { NextResponse } from "next/server";
 import { gsCall, requireMe, requireRole } from "@/lib/gs-gateway";
 
