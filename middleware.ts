@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { COOKIE_NAME } from "./lib/auth.cookie";
 
-export const runtime = "edge";
+export const runtime = "experimental-edge";
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
