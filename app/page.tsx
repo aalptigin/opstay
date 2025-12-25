@@ -1,8 +1,10 @@
 "use client";
 
+import type React from "react";
+
 import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, type HTMLMotionProps } from "framer-motion";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -10,13 +12,15 @@ function Reveal({
   children,
   className = "",
   delay = 0,
+  ...rest
 }: {
   children: React.ReactNode;
   className?: string;
   delay?: number;
-}) {
+} & Omit<HTMLMotionProps<"section">, "children">) {
   return (
     <motion.section
+      {...rest}
       className={className}
       initial={{ opacity: 0, y: 26 }}
       whileInView={{ opacity: 1, y: 0 }}
