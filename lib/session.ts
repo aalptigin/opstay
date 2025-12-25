@@ -81,8 +81,21 @@ export async function readSessionCookie(token: string, secret: string): Promise<
 
 /**
  * ✅ Next.js 16: cookies() Promise döner -> await şart
+ * ✅ Hem verifySessionCookie(secret) hem verifySessionCookie(token, secret) desteklenir
  */
-export async function verifySessionCookie(secret: string): Promise<SessionUser | null> {
+export async function verifySessionCookie(token: string, secret: string): Promise<SessionUser | null>;
+export async function verifySessionCookie(secret: string): Promise<SessionUser | null>;
+export async function verifySessionCookie(a: string, b?: string): Promise<SessionUser | null> {
+  // 2 arg: (token, secret)
+  if (typeof b === "string") {
+    const token = a;
+    const secret = b;
+    if (!token) return null;
+    return await readSessionCookie(token, secret);
+  }
+
+  // 1 arg: (secret) -> cookie'den oku
+  const secret = a;
   const c = await cookies();
   const raw = c.get(SESSION_COOKIE_NAME)?.value;
   if (!raw) return null;
