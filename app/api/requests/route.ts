@@ -1,29 +1,37 @@
-export const runtime = "edge";
-
 import { NextResponse } from "next/server";
-import { gsCall, requireMe } from "@/lib/gs-gateway";
+import { requireUser } from "@/lib/auth";
+import { gsCall } from "@/lib/gs";
+
+export const runtime = "edge";
 
 export async function GET() {
   try {
-    const me = await requireMe();
-    const r = await gsCall<any[]>("requests.list", { actor: me.email, role: me.role });
-    if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
-    return NextResponse.json({ rows: r.data });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Hata" }, { status: 401 });
+    await requireUser(); // giriş kontrolü (cookie session)
+    const data = await gsCall<{ ok: true; rows: any[] }>("requests.list", {});
+    return NextResponse.json({ ok: true, rows: data.rows ?? [] }, { headers: { "Cache-Control": "no-store" } });
+  } catch {
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401, headers: { "Cache-Control": "no-store" } });
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const me = await requireMe();
-    const body = await req.json();
-    // staff ve manager ikisi de talep açabilir
-    const r = await gsCall("requests.add", { ...body, actor: me.email, restaurant_name: me.restaurant_name });
-    if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
-    return NextResponse.json({ ok: true });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Hata" }, { status: 401 });
+    const user = await requireUser();
+
+    const body = await req.json().catch(() => ({}));
+    const subject_person_name = String(body?.subject_person_name ?? "");
+    const subject_phone = String(body?.subject_phone ?? "");
+    const reason = String(body?.reason ?? "");
+
+    const data = await gsCall<{ ok: true; request_id: string }>("requests.add", {
+      actor_email: user.email,
+      subject_person_name,
+      subject_phone,
+      reason,
+    });
+
+    return NextResponse.json({ ok: true, request_id: data.request_id }, { headers: { "Cache-Control": "no-store" } });
+  } catch {
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401, headers: { "Cache-Control": "no-store" } });
   }
 }
-s
