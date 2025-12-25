@@ -28,7 +28,7 @@ export async function gsCall<T>(action: string, payload: any = {}): Promise<Gate
   const url = env("GS_GATEWAY_URL");
   const token = env("OPSSTAY_API_TOKEN");
 
-  const session = cookies().get(COOKIE_NAME)?.value || "";
+  const session = (await cookies()).get(COOKIE_NAME)?.value || "";
 
   const res = await fetch(url, {
     method: "POST",
