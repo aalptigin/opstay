@@ -1,93 +1,86 @@
-import { NextResponse } from "next/server";
-import { gsCall, requireMe } from "@/lib/gs-gateway";
-export const runtime = "edge";
-
-export async function POST(req: Request) {
-  try {
-    const me = await requireMe();
-    const body = await req.json(); // { full_name, phone }
-    const r = await gsCall("records.check", { ...body, actor: me.email });
-    if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
-    return NextResponse.json({ result: r.data });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Hata" }, { status: 401 });
-  }
-}
-
-records/check/route.ts
-
 import { cookies } from "next/headers";
+import { COOKIE_NAME } from "./auth.cookie";
 
-export type Role = "manager" | "staff";
-
-export type Me = {
-  ok: true;
-  user: {
-    email: string;
-    role: Role;
-    restaurant_name: string;
-    full_name: string;
-    is_active: boolean;
-  };
-};
-
-type GatewayOk<T> = { ok: true; data: T };
-type GatewayErr = { ok: false; error: string };
-
-const COOKIE_NAME = "opsstay_session";
+export type GatewayErr = { ok: false; error: string };
+export type GatewayOk<T> = { ok: true; data: T };
 
 function env(name: string) {
   const v = process.env[name];
-  if (!v) throw new Error(`Missing env: ${name}`);
-  return v;
+  return (v || "").trim();
 }
 
+/**
+ * Apps Script Gateway çağrısı.
+ * Gateway tarafı { ok: true, ... } veya { ok: false, error: "..." } döndürür.
+ * Biz bunu { ok: true, data: <gatewayResponse> } şeklinde normalize ediyoruz.
+ */
 export async function gsCall<T>(action: string, payload: any = {}): Promise<GatewayOk<T> | GatewayErr> {
   const url = env("GS_GATEWAY_URL");
   const token = env("OPSSTAY_API_TOKEN");
 
-  const session = (await cookies()).get(COOKIE_NAME)?.value || "";
+  if (!url || !token) {
+    return { ok: false, error: "Missing GS_GATEWAY_URL or OPSSTAY_API_TOKEN" };
+  }
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-opsstay-token": token,
-    },
-    body: JSON.stringify({
-      token,          // body’de de yolluyoruz (gateway hangi formatı bekliyorsa)
-      action,
-      session,        // cookie’den gelen session id/token
-      payload,
-    }),
-    cache: "no-store",
-  });
+  // oturum cookie’sini gateway’e opsiyonel iletmek istersen
+  // (şu an Apps Script kodun token + actor_email ile çalışıyor; cookie şart değil)
+  const c = await cookies();
+  const session = c.get(COOKIE_NAME)?.value || "";
 
-  const text = await res.text();
-  let json: any = null;
   try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    // Apps Script bazen plain text dönebilir
-  }
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        // opsiyonel: gateway’e session göndermek istersen
+        "x-opsstay-session": session,
+      },
+      body: JSON.stringify({
+        token,
+        action,
+        payload,
+      }),
+      cache: "no-store",
+    });
 
-  if (!res.ok) {
-    return { ok: false, error: json?.error || `Gateway error (${res.status})` };
-  }
+    const json = await res.json().catch(() => null);
 
-  if (json?.ok === false) return { ok: false, error: json?.error || "Gateway error" };
-  return { ok: true, data: json?.data ?? json ?? {} };
+    // Gateway kendi ok/error formatını döndürüyorsa:
+    if (json && typeof json.ok === "boolean") {
+      if (json.ok) return { ok: true, data: json as T };
+      return { ok: false, error: String(json.error || "gateway error") };
+    }
+
+    // Gateway farklı döndürdüyse:
+    if (!res.ok) {
+      return { ok: false, error: `gateway http ${res.status}` };
+    }
+
+    return { ok: true, data: json as T };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || String(e) };
+  }
 }
+
+/**
+ * Kullanıcıyı (me) zorunlu okuma.
+ * Eğer gateway’de auth.me yoksa ama başka yerde me çekiyorsan,
+ * bu fonksiyonu o akışa göre uyarlarsın.
+ */
+export type Me = { user: { email: string; role: string; restaurant_name: string; full_name: string; is_active?: any } };
 
 export async function requireMe(): Promise<Me["user"]> {
-  const r = await gsCall<Me["user"]>("auth.me", {});
+  const r = await gsCall<any>("auth.me", {});
   if (!r.ok) throw new Error(r.error);
-  if (!r.data?.is_active) throw new Error("Hesap pasif.");
-  return r.data;
-}
 
-export function requireRole(user: { role: Role }, roles: Role[]) {
-  if (!roles.includes(user.role)) {
-    throw new Error("Yetkiniz yok.");
+  // bazı gateway’ler { ok:true, user:{...} } döner, bazıları direkt user dönebilir
+  const data = (r as GatewayOk<any>).data;
+  const user = data?.user ?? data;
+
+  if (!user) throw new Error("unauthorized");
+  if (user?.is_active !== undefined && String(user.is_active).toUpperCase() !== "TRUE") {
+    throw new Error("Hesap pasif.");
   }
+
+  return user as Me["user"];
 }
