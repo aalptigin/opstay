@@ -1,114 +1,84 @@
-import { COOKIE_NAME } from "./auth.cookie";
 import { cookies } from "next/headers";
-import { requireUser, type SessionUser } from "./auth";
+import { SESSION_COOKIE_NAME, readSessionCookie, type SessionUser } from "./auth";
 
 export type GatewayErr = { ok: false; error: string };
 export type GatewayOk<T> = { ok: true; data: T };
 
 function env(name: string) {
-  return (process.env[name] || "").trim();
+  const v = process.env[name];
+  if (!v) throw new Error(`Missing ${name}`);
+  return v;
+}
+
+async function getSession_(): Promise<SessionUser | null> {
+  const c = await cookies();
+  const raw = c.get(SESSION_COOKIE_NAME)?.value;
+  if (!raw) return null;
+
+  const secret = process.env.OPSSTAY_SESSION_SECRET || "dev_secret_change_me";
+  return await readSessionCookie(raw, secret);
+}
+
+export async function requireMe(): Promise<SessionUser> {
+  const me = await getSession_();
+  if (!me) throw new Error("unauthorized");
+  return me;
 }
 
 /**
- * Projedeki auth.ts "requireUser" export ettiği için
- * session çözmeyi buradan yapıyoruz.
+ * ✅ Yeni imza: requireRole(["manager"])
+ * me parametresi yok -> tek standart.
  */
-async function getSessionUser(): Promise<SessionUser | null> {
-  try {
-    // Bazı projelerde requireUser() direkt cookie'den okur.
-    // Okumuyorsa bile en azından aşağıda raw cookie varsa yakalayıp davranış stabil olur.
-    const u = await requireUser();
-    return (u as any) || null;
-  } catch {
-    return null;
-  }
+export async function requireRole(roles: string[]): Promise<SessionUser> {
+  const me = await requireMe();
+  if (!roles.includes(String(me.role))) throw new Error("forbidden");
+  return me;
 }
 
 /**
- * Apps Script Gateway çağrısı.
- * auth.login dışında, payload içinde actor_email yoksa cookie'den otomatik ekler.
+ * Apps Script doPost sözleşmesi:
+ * { token, action, payload }
+ * payload içine actor_email otomatik ekler.
  */
-export async function gsCall<T>(
-  action: string,
-  payload: any = {}
-): Promise<GatewayOk<T> | GatewayErr> {
+export async function gsCall<T>(action: string, payload: any = {}): Promise<GatewayOk<T> | GatewayErr> {
   const url = env("GS_GATEWAY_URL");
   const token = env("OPSSTAY_API_TOKEN");
 
-  if (!url || !token) {
-    return { ok: false, error: "Missing GS_GATEWAY_URL or OPSSTAY_API_TOKEN" };
+  // actor_email otomatik ekle (auth.login hariç)
+  const isAuthAction = action === "auth.login" || action === "users.getByEmail";
+  if (!isAuthAction && !payload?.actor_email) {
+    const me = await getSession_();
+    if (me?.email) payload = { ...payload, actor_email: me.email };
   }
 
-  // auth.login haricinde actor_email otomatik tamamla
-  let finalPayload = payload || {};
-  if (action !== "auth.login" && !finalPayload.actor_email) {
-    const u = await getSessionUser();
-    if (u?.email) {
-      finalPayload = { ...finalPayload, actor_email: u.email };
-    } else {
-      // En azından cookie var mı kontrol et (bazı akışlarda requireUser farklı davranabilir)
-      const c = await cookies();
-      const raw = c.get(COOKIE_NAME)?.value;
-      if (raw) {
-        // actor_email yoksa gateway requireActor_ patlayabilir; burada set edemedik.
-        // Bu durumda API route tarafı zaten unauthorized dönmeli.
-      }
-    }
-  }
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ token, action, payload }),
+    cache: "no-store",
+  });
 
+  let json: any = null;
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token, action, payload: finalPayload }),
-      cache: "no-store",
-    });
-
-    const text = await res.text();
-    let json: any = null;
-
-    try {
-      json = text ? JSON.parse(text) : null;
-    } catch {
-      return { ok: false, error: `Gateway returned non-JSON (${res.status})` };
-    }
-
-    if (json && typeof json.ok === "boolean") {
-      if (json.ok) return { ok: true, data: json as T };
-      return { ok: false, error: String(json.error || "gateway error") };
-    }
-
-    if (!res.ok) return { ok: false, error: `gateway http ${res.status}` };
-    return { ok: true, data: json as T };
-  } catch (e: any) {
-    return { ok: false, error: e?.message || String(e) };
+    json = await res.json();
+  } catch {
+    // Apps Script bazen HTML dönerse buraya düşer
+    return { ok: false, error: `gateway_invalid_json_http_${res.status}` };
   }
-}
 
-export type MeUser = {
-  email: string;
-  role: string;
-  restaurant_name: string;
-  full_name: string;
-  is_active?: any;
-};
+  if (!res.ok) return { ok: false, error: json?.error || `gateway_http_${res.status}` };
+  if (!json?.ok) return { ok: false, error: json?.error || "gateway_error" };
 
-export async function requireMe(): Promise<MeUser> {
-  const u = await getSessionUser();
-  if (!u?.email) throw new Error("unauthorized");
+  // Standart data mapping:
+  const data =
+    json.data ??
+    json.rows ??
+    json.user ??
+    json.matches ??
+    json.result ??
+    json.record_id ??
+    json.request_id ??
+    json;
 
-  return {
-    email: u.email,
-    role: String((u as any).role || ""),
-    restaurant_name: String((u as any).restaurant_name || ""),
-    full_name: String((u as any).full_name || ""),
-    is_active: (u as any).is_active,
-  };
-}
-
-export async function requireRole(roles: string | string[]): Promise<MeUser> {
-  const user = await requireMe();
-  const allowed = Array.isArray(roles) ? roles : [roles];
-  if (!allowed.includes(String(user.role))) throw new Error("forbidden");
-  return user;
+  return { ok: true, data: data as T };
 }

@@ -1,58 +1,66 @@
 import { NextResponse } from "next/server";
-import { requireUser } from "../../../lib/auth";
-import { gsCall } from "../../../lib/gs";
-import { recordAddSchema, recordUpdateSchema, recordDeleteSchema } from "../../../lib/validators";
+import { gsCall } from "@/lib/gs-gateway";
 
 export const runtime = "edge";
 
 export async function GET() {
   try {
-    const user = await requireUser();
-    const data = await gsCall<{ ok: true; rows: any[] }>("records.list", { actor_email: user.email });
-    return NextResponse.json({ rows: data.rows });
-  } catch {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    const r = await gsCall<any[]>("records.list", {});
+    if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
+    return NextResponse.json({ rows: r.data });
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || "error" }, { status: 500 });
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const user = await requireUser();
-    const body = await req.json().catch(() => null);
-    const parsed = recordAddSchema.safeParse(body);
-    if (!parsed.success) return NextResponse.json({ error: "Geçersiz veri." }, { status: 400 });
+    const body = await req.json();
+    const r = await gsCall("records.add", {
+      full_name: body.full_name,
+      phone: body.phone,
+      status: body.status || "active",
+      note: body.note || body.summary || "",
+      // actor_email otomatik
+    });
 
-    const out = await gsCall<{ ok: true; record_id: string }>("records.add", { actor_email: user.email, ...parsed.data });
-    return NextResponse.json({ ok: true, record_id: out.record_id });
+    if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
+    return NextResponse.json({ ok: true, record_id: r.data });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "error" }, { status: 400 });
+    return NextResponse.json({ error: e?.message || "error" }, { status: 500 });
   }
 }
 
 export async function PUT(req: Request) {
   try {
-    const user = await requireUser();
-    const body = await req.json().catch(() => null);
-    const parsed = recordUpdateSchema.safeParse(body);
-    if (!parsed.success) return NextResponse.json({ error: "Geçersiz veri." }, { status: 400 });
+    const body = await req.json();
+    const r = await gsCall("records.update", {
+      record_id: body.record_id,
+      full_name: body.full_name,
+      phone: body.phone,
+      status: body.status,
+      note: body.note || body.summary || "",
+      // actor_email otomatik
+    });
 
-    await gsCall("records.update", { actor_email: user.email, ...parsed.data });
+    if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "error" }, { status: 400 });
+    return NextResponse.json({ error: e?.message || "error" }, { status: 500 });
   }
 }
 
 export async function DELETE(req: Request) {
   try {
-    const user = await requireUser();
-    const body = await req.json().catch(() => null);
-    const parsed = recordDeleteSchema.safeParse(body);
-    if (!parsed.success) return NextResponse.json({ error: "Geçersiz veri." }, { status: 400 });
+    const body = await req.json();
+    const r = await gsCall("records.delete", {
+      record_id: body.record_id,
+      // actor_email otomatik
+    });
 
-    await gsCall("records.delete", { actor_email: user.email, ...parsed.data });
+    if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "error" }, { status: 400 });
+    return NextResponse.json({ error: e?.message || "error" }, { status: 500 });
   }
 }

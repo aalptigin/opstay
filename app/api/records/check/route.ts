@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
-import { gsCall, requireMe } from "@/lib/gs-gateway";
+import { gsCall } from "@/lib/gs-gateway";
+
 export const runtime = "edge";
 
 export async function POST(req: Request) {
   try {
-    const me = await requireMe();
-    const body = await req.json(); // { full_name, phone }
-    const r = await gsCall("records.check", { ...body, actor: me.email });
+    const body = await req.json(); // { phone?, full_name? }
+    const r = await gsCall<any[]>("records.check", {
+      phone: body.phone,
+      full_name: body.full_name,
+      // actor_email otomatik
+    });
+
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
-    return NextResponse.json({ result: r.data });
+    return NextResponse.json({ matches: r.data });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Hata" }, { status: 401 });
+    return NextResponse.json({ error: e?.message || "error" }, { status: 500 });
   }
 }

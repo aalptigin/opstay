@@ -1,30 +1,32 @@
 import { NextResponse } from "next/server";
-import { requireUser } from "../../../lib/auth";
-import { gsCall } from "../../../lib/gs";
-import { reservationAddSchema } from "../../../lib/validators";
+import { gsCall } from "@/lib/gs-gateway";
 
 export const runtime = "edge";
 
 export async function GET() {
   try {
-    const user = await requireUser();
-    const data = await gsCall<{ ok: true; rows: any[] }>("reservations.list", { actor_email: user.email });
-    return NextResponse.json({ rows: data.rows });
-  } catch {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    const r = await gsCall<any[]>("reservations.list", {});
+    if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
+    return NextResponse.json({ rows: r.data });
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || "error" }, { status: 500 });
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const user = await requireUser();
-    const body = await req.json().catch(() => null);
-    const parsed = reservationAddSchema.safeParse(body);
-    if (!parsed.success) return NextResponse.json({ error: "Geçersiz veri." }, { status: 400 });
+    const body = await req.json(); // { datetime, full_name, phone, note }
+    const r = await gsCall("reservations.add", {
+      datetime: body.datetime,
+      full_name: body.full_name,
+      phone: body.phone,
+      note: body.note || "",
+      // actor_email otomatik
+    });
 
-    await gsCall("reservations.add", { actor_email: user.email, ...parsed.data });
+    if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "error" }, { status: 400 });
+    return NextResponse.json({ error: e?.message || "error" }, { status: 500 });
   }
 }
