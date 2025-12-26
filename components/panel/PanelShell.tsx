@@ -103,7 +103,8 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <div className="min-h-screen bg-[#060a16]">
+    // ✅ overflow-x-hidden + w-full: sağdaki beyaz şerit / yatay taşma kapanır
+    <div className="min-h-screen w-full overflow-x-hidden bg-[#060a16]">
       {/* Mobile top bar */}
       <div className="lg:hidden sticky top-0 z-50 border-b border-white/10 bg-[#050a16]/80 backdrop-blur-xl">
         <div className="h-14 px-4 flex items-center justify-between">
@@ -126,8 +127,10 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1400px]">
-        <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr]">
+      {/* ✅ Burada mx-auto / max-w kaldırıldı: panel tamamen sola 0’a 0 oturur */}
+      <div className="w-full">
+        {/* ✅ min-w-0: içerik genişleyip sağa taşmasın */}
+        <div className="grid min-w-0 grid-cols-1 lg:grid-cols-[320px_1fr]">
           {/* Sidebar */}
           <aside
             className={cx(
@@ -180,7 +183,8 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, ease }}
-            className="min-h-screen"
+            // ✅ min-w-0 + w-full: çocuklar taşırsa bile grid içinde kırpılır
+            className="min-h-screen min-w-0 w-full"
           >
             <div className="px-5 py-6 lg:px-8 lg:py-10">{children}</div>
           </motion.main>
