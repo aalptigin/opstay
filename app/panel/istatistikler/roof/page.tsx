@@ -5,7 +5,10 @@ import LineChart from "../_components/LineChart";
 
 type Row = Record<string, any>;
 
-function s(v: any) { return String(v ?? "").trim(); }
+function s(v: any) {
+  return String(v ?? "").trim();
+}
+
 function pick(obj: any, keys: string[]) {
   for (const k of keys) {
     const v = obj?.[k];
@@ -15,6 +18,7 @@ function pick(obj: any, keys: string[]) {
   }
   return "";
 }
+
 function normalizeDate(v: any) {
   const raw = s(v);
   if (!raw) return "";
@@ -32,6 +36,7 @@ function normalizeDate(v: any) {
   }
   return raw;
 }
+
 function lastNDays(n: number) {
   const out: string[] = [];
   const now = new Date();
@@ -43,10 +48,38 @@ function lastNDays(n: number) {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
-    }).format(d).replace(/\./g, "/");
+    })
+      .format(d)
+      .replace(/\./g, "/");
     out.push(str);
   }
   return out;
+}
+
+/** Sadece kara liste kayıtlarını saymak için */
+function isBlacklistRow(r: Row) {
+  const status = s(
+    pick(r, ["status", "state", "type", "record_type", "kind", "category"])
+  ).toLowerCase();
+
+  const statusBlacklist =
+    status === "blacklist" ||
+    status === "kara_liste" ||
+    status === "kara liste" ||
+    status === "bl" ||
+    status === "ban" ||
+    status === "banned";
+
+  const flagVal = pick(r, ["is_blacklist", "blacklist", "in_blacklist", "kara_liste"]);
+  const flag =
+    flagVal === true ||
+    String(flagVal).toLowerCase() === "true" ||
+    String(flagVal) === "1";
+
+  const mode = s(pick(r, ["mode"])).toLowerCase();
+  const modeBlacklist = mode === "blacklist" || mode === "kara_liste" || mode === "kara liste";
+
+  return statusBlacklist || flag || modeBlacklist;
 }
 
 export default function Page() {
@@ -60,9 +93,11 @@ export default function Page() {
 
   useEffect(() => {
     let alive = true;
+
     async function load() {
       setLoading(true);
       setErr("");
+
       try {
         const [r1, r2] = await Promise.all([
           fetch("/api/reservations", { cache: "no-store" }),
@@ -70,6 +105,7 @@ export default function Page() {
         ]);
         const j1 = await r1.json();
         const j2 = await r2.json();
+
         if (!alive) return;
         setReservations(Array.isArray(j1?.rows) ? j1.rows : []);
         setRecords(Array.isArray(j2?.rows) ? j2.rows : []);
@@ -81,8 +117,11 @@ export default function Page() {
         setLoading(false);
       }
     }
+
     load();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const days = useMemo(() => lastNDays(DAYS), []);
@@ -91,31 +130,40 @@ export default function Page() {
     const resByDay = new Map<string, number>();
     const blByDay = new Map<string, number>();
 
+    // reservations -> sadece rezervasyonlar
     for (const r of reservations) {
       const rest = s(pick(r, ["restaurant", "restaurant_name"]));
       if (rest !== REST) continue;
+
       const d = normalizeDate(pick(r, ["date", "gun_ay_yil"]));
       if (!d) continue;
+
       resByDay.set(d, (resByDay.get(d) || 0) + 1);
     }
 
+    // records -> SADECE kara liste kayıtları
     for (const r of records) {
       const rest = s(pick(r, ["restaurant", "restaurant_name"]));
       if (rest !== REST) continue;
-      const d = normalizeDate(pick(r, ["date", "gun_ay_yil"]));
+
+      if (!isBlacklistRow(r)) continue;
+
+      const d =
+        normalizeDate(
+          pick(r, ["date", "gun_ay_yil", "created_date", "created_at_date", "created_at"])
+        ) || "";
       if (!d) continue;
+
       blByDay.set(d, (blByDay.get(d) || 0) + 1);
     }
 
     const resSeries = days.map((d) => resByDay.get(d) || 0);
     const blSeries = days.map((d) => blByDay.get(d) || 0);
 
-    return {
-      resSeries,
-      blSeries,
-      totalRes: resSeries.reduce((a, b) => a + b, 0),
-      totalBL: blSeries.reduce((a, b) => a + b, 0),
-    };
+    const totalRes = resSeries.reduce((a, b) => a + b, 0);
+    const totalBL = blSeries.reduce((a, b) => a + b, 0);
+
+    return { resSeries, blSeries, totalRes, totalBL };
   }, [reservations, records, days]);
 
   return (
@@ -123,7 +171,9 @@ export default function Page() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">İstatistikler • {REST}</h1>
-          <p className="text-white/60 text-sm">{DAYS} günlük özet (rezervasyon ve kayıt/kara liste).</p>
+          <p className="text-white/60 text-sm">
+            {DAYS} günlük özet (rezervasyon ve kara liste).
+          </p>
         </div>
 
         <button
@@ -143,11 +193,16 @@ export default function Page() {
       <div className="grid gap-3 md:grid-cols-2">
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
           <div className="text-sm text-white/60">Toplam Rezervasyon</div>
-          <div className="text-3xl font-semibold mt-1">{loading ? "-" : stats.totalRes}</div>
+          <div className="text-3xl font-semibold mt-1">
+            {loading ? "-" : stats.totalRes}
+          </div>
         </div>
+
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-          <div className="text-sm text-white/60">Toplam Kayıt/Kara Liste</div>
-          <div className="text-3xl font-semibold mt-1">{loading ? "-" : stats.totalBL}</div>
+          <div className="text-sm text-white/60">Toplam Kara Liste</div>
+          <div className="text-3xl font-semibold mt-1">
+            {loading ? "-" : stats.totalBL}
+          </div>
         </div>
       </div>
 
@@ -163,7 +218,7 @@ export default function Page() {
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
         <div className="flex items-center justify-between">
-          <div className="text-sm font-medium">Günlük Kayıt/Kara Liste (ham)</div>
+          <div className="text-sm font-medium">Günlük Kara Liste</div>
           <div className="text-xs text-white/50">dd/MM/yyyy</div>
         </div>
         <div className="mt-3">

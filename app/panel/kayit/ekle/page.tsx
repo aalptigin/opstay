@@ -8,49 +8,26 @@ type ApiRow = {
   record_id: string;
   full_name: string;
   phone: string;
-  risk_level: string;
-  summary: string;
+  
+  reservation_no?: string;
+  date?: string;
+  time?: string;
+  table_no?: string;
+  authorized_name?: string;
+  authorized_email?: string;
+  note?: string;
+  restaurant_name?: string;
+  restaurant?: string;
+  created_at?: string;
+  
+  risk_level?: string;
+  summary?: string;
 };
 
 type Me = { user: { full_name: string; role: string; restaurant_name: string } };
 
-type BlacklistMeta = {
-  reservation_no?: string;
-  date?: string; // YYYY-MM-DD
-  table_no?: string;
-  added_by?: string;
-  note?: string;
-};
-
 function pad2(n: number) {
   return String(n).padStart(2, "0");
-}
-
-function safeParseMeta(summary: string): BlacklistMeta {
-  if (!summary) return {};
-  try {
-    const obj = JSON.parse(summary);
-    if (obj && typeof obj === "object") return obj as BlacklistMeta;
-    return {};
-  } catch {
-    // Eski kayıtlar düz metin olabilir
-    return { note: summary };
-  }
-}
-
-function buildSummary(meta: BlacklistMeta) {
-  // API mevcut yapısını bozmadan: summary içine JSON koyuyoruz
-  return JSON.stringify(
-    {
-      reservation_no: meta.reservation_no || "",
-      date: meta.date || "",
-      table_no: meta.table_no || "",
-      added_by: meta.added_by || "",
-      note: meta.note || "",
-    },
-    null,
-    0
-  );
 }
 
 export default function KayitEklePage() {
@@ -65,6 +42,8 @@ export default function KayitEklePage() {
   const [phone, setPhone] = useState("");
   const [addedBy, setAddedBy] = useState("");
   const [note, setNote] = useState("");
+  
+  const [restaurant, setRestaurant] = useState<"Roof" | "Happy Moons">("Roof");
 
   // list + filter state
   const [rows, setRows] = useState<ApiRow[]>([]);
@@ -122,23 +101,19 @@ export default function KayitEklePage() {
     loadList();
   }, []);
 
-  noted: {
-    /* (bilinçli olarak boş) */
-  }
-
-  const normalizedRows = useMemo(() => {
-    return rows.map((r) => {
-      const meta = safeParseMeta(r.summary || "");
-      return { r, meta };
-    });
-  }, [rows]);
-
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
-    return normalizedRows.filter(({ r, meta }) => {
-      // tarih filtresi (GG/AA/YYYY girilirse sadece o gün)
+    return rows.filter((r) => {
       if (filterIsoDate) {
-        if ((meta.date || "") !== filterIsoDate) return false;
+        const rDate = r.date || "";
+        if (rDate === filterIsoDate) return true;
+        const match = rDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (match) {
+          const converted = `${match[3]}-${match[2]}-${match[1]}`;
+          if (converted !== filterIsoDate) return false;
+        } else if (rDate !== filterIsoDate) {
+          return false;
+        }
       }
 
       if (!s) return true;
@@ -147,20 +122,20 @@ export default function KayitEklePage() {
         r.record_id || "",
         r.full_name || "",
         r.phone || "",
-        r.risk_level || "",
-        meta.reservation_no || "",
-        meta.table_no || "",
-        meta.added_by || "",
-        meta.date || "",
-        meta.note || "",
-        r.summary || "",
+        r.reservation_no || "",
+        r.table_no || "",
+        r.authorized_name || "",
+        r.date || "",
+        r.note || "",
+        r.restaurant_name || "",
+        r.restaurant || "",
       ]
         .join(" ")
         .toLowerCase();
 
       return hay.includes(s);
     });
-  }, [normalizedRows, q, filterIsoDate]);
+  }, [rows, q, filterIsoDate]);
 
   async function onSubmit() {
     setMsg(null);
@@ -168,16 +143,17 @@ export default function KayitEklePage() {
 
     try {
       const payload = {
-        full_name: guestFullName, // API ile uyumlu
+        restaurant_name: restaurant,
+        restaurant: restaurant,
+        full_name: guestFullName,
         phone,
-        risk_level: "kritik", // blacklist kaydı
-        summary: buildSummary({
-          reservation_no: reservationNo,
-          date: isoDate,
-          table_no: tableNo,
-          added_by: addedBy,
-          note,
-        }),
+        reservation_no: reservationNo,
+        date: isoDate,
+        time: "00:00",
+        table_no: tableNo,
+        authorized_name: addedBy,
+        note,
+        status: "blacklist",
       };
 
       const res = await fetch("/api/records", {
@@ -207,9 +183,9 @@ export default function KayitEklePage() {
   return (
     <div>
       <div className="text-white/60 text-xs tracking-[0.35em] font-semibold">KAYIT</div>
-      <h1 className="mt-2 text-2xl md:text-3xl font-extrabold text-white">Blacklist’e Kayıt Ekle</h1>
+      <h1 className="mt-2 text-2xl md:text-3xl font-extrabold text-white">Kara Liste'ye Aktar</h1>
       <p className="mt-2 text-sm text-white/60">
-        Rezervasyon kaydı üzerinden misafiri blacklist’e ekleyin ve aynı ekranda mevcut kayıtları görüntüleyin.
+        Rezervasyon kaydı üzerinden misafiri blacklist'e ekleyin ve aynı ekranda mevcut kayıtları görüntüleyin.
       </p>
 
       {/* FORM */}
@@ -217,8 +193,20 @@ export default function KayitEklePage() {
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45 }}
-        className="mt-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5"
+        className="mt-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5 relative"
       >
+        {/* Restoran Seçimi (Sağ Üst) */}
+        <div className="absolute -top-4 right-4 z-20">
+          <select
+            value={restaurant}
+            onChange={(e) => setRestaurant(e.target.value as "Roof" | "Happy Moons")}
+            className="rounded-xl border border-white/15 bg-[#050B14]/90 px-4 py-2 text-sm text-white/90 shadow-lg backdrop-blur outline-none"
+          >
+            <option value="Roof">Roof</option>
+            <option value="Happy Moons">Happy Moons</option>
+          </select>
+        </div>
+
         <div className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="text-xs text-white/60">Rezervasyon numarası</label>
@@ -308,6 +296,17 @@ export default function KayitEklePage() {
           />
         </div>
 
+        {/* ✅ Eklenme Saati Önizlemesi */}
+        <div className="mt-4 flex items-center gap-2 text-xs text-white/50">
+          <span>Kara listeye eklenme saati:</span>
+          <span className="text-white/70 font-mono">
+            {new Date().toLocaleTimeString("tr-TR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </span>
+        </div>
+
         <div className="mt-5 flex items-center justify-between gap-3">
           <div className="text-sm text-white/70">{msg}</div>
           <button
@@ -316,7 +315,7 @@ export default function KayitEklePage() {
             disabled={saving}
             className="rounded-xl bg-[#0ea5ff] px-5 py-3 text-sm font-semibold text-[#06121f] disabled:opacity-60"
           >
-            {saving ? "Kaydediliyor..." : "Blacklist’e Ekle"}
+            {saving ? "Kaydediliyor..." : "Blacklist'e Ekle"}
           </button>
         </div>
       </motion.div>
@@ -332,7 +331,6 @@ export default function KayitEklePage() {
           <div className="text-white font-semibold">Blacklist Kayıtları</div>
 
           <div className="flex flex-wrap gap-3 items-center">
-            {/* Tarih filtresi (GG/AA/YYYY) */}
             <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
               <input
                 value={fDay}
@@ -367,7 +365,6 @@ export default function KayitEklePage() {
               </button>
             </div>
 
-            {/* Genel arama */}
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -385,39 +382,41 @@ export default function KayitEklePage() {
           <table className="w-full text-sm">
             <thead className="text-white/55">
               <tr className="border-t border-white/10">
-                <th className="text-left px-5 py-3">Rez. No</th>
-                <th className="text-left px-5 py-3">Tarih</th>
-                <th className="text-left px-5 py-3">Misafir</th>
-                <th className="text-left px-5 py-3">Masa</th>
-                <th className="text-left px-5 py-3">Telefon</th>
-                <th className="text-left px-5 py-3">Ekleyen</th>
-                <th className="text-left px-5 py-3">Not</th>
+                <th className="text-left px-5 py-3 whitespace-nowrap">Rez. No</th>
+                <th className="text-left px-5 py-3 whitespace-nowrap">Restoran</th>
+                <th className="text-left px-5 py-3 whitespace-nowrap">Tarih</th>
+                <th className="text-left px-5 py-3 whitespace-nowrap">Misafir</th>
+                <th className="text-left px-5 py-3 whitespace-nowrap">Masa</th>
+                <th className="text-left px-5 py-3 whitespace-nowrap">Telefon</th>
+                <th className="text-left px-5 py-3 whitespace-nowrap">Ekleyen</th>
+                <th className="text-left px-5 py-3 whitespace-nowrap">Not</th>
               </tr>
             </thead>
             <tbody className="text-white/85">
               {loadingList ? (
                 <tr className="border-t border-white/10">
-                  <td className="px-5 py-10 text-white/55" colSpan={7}>
+                  <td className="px-5 py-10 text-white/55" colSpan={8}>
                     Yükleniyor...
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr className="border-t border-white/10">
-                  <td className="px-5 py-10 text-white/55" colSpan={7}>
+                  <td className="px-5 py-10 text-white/55" colSpan={8}>
                     Kayıt yok.
                   </td>
                 </tr>
               ) : (
-                filtered.map(({ r, meta }) => (
+                filtered.map((r) => (
                   <tr key={r.record_id} className="border-t border-white/10">
-                    <td className="px-5 py-3 text-white/70">{meta.reservation_no || "-"}</td>
-                    <td className="px-5 py-3 text-white/70">{meta.date || "-"}</td>
-                    <td className="px-5 py-3">{r.full_name || "-"}</td>
-                    <td className="px-5 py-3 text-white/70">{meta.table_no || "-"}</td>
-                    <td className="px-5 py-3 text-white/70">{r.phone || "-"}</td>
-                    <td className="px-5 py-3 text-white/70">{meta.added_by || "-"}</td>
+                    <td className="px-5 py-3 text-white/70 whitespace-nowrap">{r.reservation_no || "-"}</td>
+                    <td className="px-5 py-3 text-white/70 whitespace-nowrap">{r.restaurant_name || r.restaurant || "-"}</td>
+                    <td className="px-5 py-3 text-white/70 whitespace-nowrap">{r.date || "-"}</td>
+                    <td className="px-5 py-3 whitespace-nowrap">{r.full_name || "-"}</td>
+                    <td className="px-5 py-3 text-white/70 whitespace-nowrap">{r.table_no || "-"}</td>
+                    <td className="px-5 py-3 text-white/70 whitespace-nowrap">{r.phone || "-"}</td>
+                    <td className="px-5 py-3 text-white/70 whitespace-nowrap">{r.authorized_name || "-"}</td>
                     <td className="px-5 py-3 text-white/70">
-                      <div className="max-w-[520px] line-clamp-2">{meta.note || "-"}</div>
+                      <div className="max-w-[520px] line-clamp-2">{r.note || "-"}</div>
                     </td>
                   </tr>
                 ))
