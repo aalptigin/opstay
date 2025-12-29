@@ -8,6 +8,50 @@ import { motion, type HTMLMotionProps } from "framer-motion";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
+// İSTEK: soldaki baloncuk kapalı
+const SHOW_FLOATING_MINUS = false;
+
+// İSTEK: senaryo görsellerinin altındaki caption kapalı
+const SHOW_SCENARIO_CAPTION = false;
+
+function AmbientMotionLayer() {
+  // Layout'ı etkilemez: fixed + pointer-events-none + isolate parent'ta -z-10
+  return (
+    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+      <motion.div
+        aria-hidden
+        className="absolute -top-24 -left-24 h-[360px] w-[360px] rounded-full blur-3xl opacity-40"
+        animate={{ y: [0, -14, 0], opacity: [0.28, 0.55, 0.28] }}
+        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+        style={{
+          background:
+            "radial-gradient(circle at 30% 30%, rgba(14,165,255,0.45), rgba(14,165,255,0) 60%)",
+        }}
+      />
+      <motion.div
+        aria-hidden
+        className="absolute top-32 -right-28 h-[440px] w-[440px] rounded-full blur-3xl opacity-35"
+        animate={{ x: [0, 14, 0], opacity: [0.22, 0.5, 0.22] }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        style={{
+          background:
+            "radial-gradient(circle at 30% 30%, rgba(59,130,246,0.35), rgba(59,130,246,0) 60%)",
+        }}
+      />
+      <motion.div
+        aria-hidden
+        className="absolute bottom-[-220px] left-[20%] h-[520px] w-[520px] rounded-full blur-3xl opacity-25"
+        animate={{ y: [0, 18, 0], opacity: [0.18, 0.35, 0.18] }}
+        transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+        style={{
+          background:
+            "radial-gradient(circle at 30% 30%, rgba(2,132,199,0.30), rgba(2,132,199,0) 62%)",
+        }}
+      />
+    </div>
+  );
+}
+
 function Reveal({
   children,
   className = "",
@@ -41,9 +85,17 @@ function Pill({ children }: { children: React.ReactNode }) {
 }
 
 function LogoMark() {
+  // Logo dosyası: public/images/opsstay-logo.jpeg
   return (
-    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#0ea5ff] text-[#061021] shadow-[0_12px_30px_rgba(14,165,255,.35)]">
-      <span className="text-sm font-black">O</span>
+    <span className="relative inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-white shadow-[0_12px_30px_rgba(14,165,255,.25)]">
+      <Image
+        src="/images/opsstay-logo.jpeg"
+        alt="OpsStay"
+        fill
+        sizes="36px"
+        className="object-contain"
+        priority
+      />
     </span>
   );
 }
@@ -56,15 +108,23 @@ function NavBar() {
           <div className="flex items-center gap-3">
             <LogoMark />
             <div className="leading-tight">
-              <div className="text-white font-semibold tracking-tight">opsstay</div>
-              <div className="text-[11px] text-white/55">Misafir Ön Kontrol &amp; Güvenli Konaklama</div>
+              <div className="text-white font-semibold tracking-tight">OpsStay</div>
+              <div className="text-[11px] text-white/55">
+                Misafir Ön Kontrol &amp; Güvenli Konaklama
+              </div>
             </div>
           </div>
 
           <div className="hidden md:flex items-center gap-6 text-sm text-white/75">
-            <a href="#cozumler" className="hover:text-white transition">Çözümler</a>
-            <a href="#hakkimizda" className="hover:text-white transition">Hakkımızda</a>
-            <a href="#akıs" className="hover:text-white transition">Neler yapabiliriz</a>
+            <a href="#cozumler" className="hover:text-white transition">
+              Çözümler
+            </a>
+            <a href="#hakkimizda" className="hover:text-white transition">
+              Hakkımızda
+            </a>
+            <a href="#akıs" className="hover:text-white transition">
+              Neler yapabiliriz
+            </a>
           </div>
 
           <Link
@@ -98,19 +158,37 @@ function Trio() {
       <div className="grid grid-cols-1 md:grid-cols-3 items-start gap-7">
         <div className="md:mt-6">
           <div className="relative overflow-hidden rounded-2xl border border-black/5 shadow-[0_20px_50px_rgba(10,16,32,.22)]">
-            <Image src="/images/tri-1.jpg" alt="" width={900} height={650} className="h-[180px] w-full object-cover" />
+            <Image
+              src="/images/tri-1.jpg"
+              alt=""
+              width={900}
+              height={650}
+              className="h-[180px] w-full object-cover"
+            />
           </div>
         </div>
 
         <div>
           <div className="relative overflow-hidden rounded-3xl border border-black/5 shadow-[0_25px_60px_rgba(10,16,32,.25)]">
-            <Image src="/images/tri-2.jpg" alt="" width={1200} height={900} className="h-[240px] md:h-[270px] w-full object-cover" />
+            <Image
+              src="/images/tri-2.jpg"
+              alt=""
+              width={1200}
+              height={900}
+              className="h-[240px] md:h-[270px] w-full object-cover"
+            />
           </div>
         </div>
 
         <div className="md:mt-6">
           <div className="relative overflow-hidden rounded-2xl border border-black/5 shadow-[0_20px_50px_rgba(10,16,32,.22)]">
-            <Image src="/images/tri-3.jpg" alt="" width={900} height={650} className="h-[180px] w-full object-cover" />
+            <Image
+              src="/images/tri-3.jpg"
+              alt=""
+              width={900}
+              height={650}
+              className="h-[180px] w-full object-cover"
+            />
           </div>
         </div>
       </div>
@@ -124,20 +202,23 @@ function InfoCards() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
         <div>
           <span className="inline-flex items-center rounded-full bg-[#e8f4ff] px-4 py-1 text-xs text-[#0b66c3] border border-[#cfe9ff]">
-            Opsstay hakkında
+            OpsStay hakkında
           </span>
 
           <h3 className="mt-5 text-3xl font-extrabold leading-tight text-[#0b1326]">
-            Opsstay, misafir yolculuğuna <span className="text-[#0ea5ff]">ön kontrol katmanı</span> ekler.
+            OpsStay, misafir yolculuğuna{" "}
+            <span className="text-[#0ea5ff]">ön kontrol katmanı</span> ekler.
           </h3>
 
           <p className="mt-4 text-[#0b1326]/70 leading-relaxed">
-            Günümüz konaklama işletmelerinde misafir bilgisi; farklı sistemlere dağılmış, tutarsız ve çoğu zaman operasyon ekibinin
-            elinde yeterince hazırlanmış halde. Opsstay, bu dağınık yapıyı tek bir kurumsal görüşe çevirir.
+            Günümüz konaklama işletmelerinde misafir bilgisi; farklı sistemlere dağılmış,
+            tutarsız ve çoğu zaman operasyon ekibinin elinde yeterince hazırlanmış halde.
+            OpsStay, bu dağınık yapıyı tek bir kurumsal görüşe çevirir.
           </p>
           <p className="mt-4 text-[#0b1326]/70 leading-relaxed">
-            Amacımız; resepsiyon, güvenlik, F&amp;B ve yönetim ekiplerine misafir daha otele gelmeden önce
-            “Bu misafir bizim için ne ifade ediyor?” sorusunun cevabını sade ve anlaşılır bir dille sunmak.
+            Amacımız; resepsiyon, güvenlik, F&amp;B ve yönetim ekiplerine misafir daha
+            otele gelmeden önce “Bu misafir bizim için ne ifade ediyor?” sorusunun
+            cevabını sade ve anlaşılır bir dille sunmak.
           </p>
         </div>
 
@@ -184,10 +265,18 @@ function ScenarioRow({
   bullets: string[];
   quote: string;
 }) {
+  const showCaption = SHOW_SCENARIO_CAPTION && caption.trim().length > 0;
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[520px_1fr] gap-10 items-start">
       <div className="relative overflow-hidden rounded-3xl border border-black/5 shadow-[0_25px_60px_rgba(10,16,32,.18)]">
-        <Image src={image} alt="" width={1200} height={800} className="h-[250px] md:h-[280px] w-full object-cover" />
+        <Image
+          src={image}
+          alt=""
+          width={1200}
+          height={800}
+          className="h-[250px] md:h-[280px] w-full object-cover"
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-black/0" />
         <div className="absolute left-4 top-4">
           <span className="inline-flex items-center rounded-full bg-black/40 px-3 py-1 text-xs text-white/90 border border-white/15">
@@ -197,7 +286,10 @@ function ScenarioRow({
         <div className="absolute left-4 top-14">
           <div className="text-white font-bold text-xl leading-tight">{titleOnImage}</div>
         </div>
-        <div className="absolute left-4 bottom-4 right-4 text-xs text-white/75">{caption}</div>
+
+        {showCaption ? (
+          <div className="absolute left-4 bottom-4 right-4 text-xs text-white/75">{caption}</div>
+        ) : null}
       </div>
 
       <div>
@@ -227,7 +319,6 @@ function ContactSection() {
       <div className="mx-auto max-w-6xl px-6 py-16">
         <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_30px_90px_rgba(0,0,0,.35)] p-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
-            {/* Sol: sadece istenenler */}
             <div>
               <div className="text-white/70 text-sm">Talepleriniz için iletişime geçin.</div>
 
@@ -241,21 +332,31 @@ function ContactSection() {
               </div>
 
               <div className="mt-10 flex items-center gap-3">
-                <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 border border-white/10">
-                  <span className="text-white text-lg">✦</span>
+                <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 border border-white/10 overflow-hidden">
+                  <Image
+                    src="/images/opsstay-logo.jpeg"
+                    alt="OpsStay"
+                    width={24}
+                    height={24}
+                    className="object-contain"
+                  />
                 </span>
                 <div>
-                  <div className="text-white font-semibold tracking-tight">OPSSTAY</div>
-                  <div className="text-xs text-white/55">Misafir Ön Kontrol &amp; Güvenli Konaklama</div>
+                  <div className="text-white font-semibold tracking-tight">OpsStay</div>
+                  <div className="text-xs text-white/55">
+                    Misafir Ön Kontrol &amp; Güvenli Konaklama
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Sağ: sadece istenenler */}
             <div>
-              <h3 className="text-3xl font-extrabold text-white leading-tight">Riskleri azaltın, verinizi koruyun</h3>
+              <h3 className="text-3xl font-extrabold text-white leading-tight">
+                Riskleri azaltın, verinizi koruyun
+              </h3>
               <p className="mt-2 text-sm text-white/70">
-                Entegrasyonlardan geri kalmamak için güncellemelerden ve yeni akışlardan haberdar olun.
+                Entegrasyonlardan geri kalmamak için güncellemelerden ve yeni akışlardan
+                haberdar olun.
               </p>
 
               <div className="mt-6">
@@ -280,21 +381,17 @@ function ContactSection() {
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-[#f7fbff]">
-      <NavBar />
-      <FloatingMinus />
+    <main className="relative isolate min-h-screen bg-[#f7fbff]">
+      {/* Sürekli framer motion ambient layer */}
+      <AmbientMotionLayer />
 
-      {/* HERO — saydam/gri blok YOK: görsel net görünsün */}
+      <NavBar />
+      {SHOW_FLOATING_MINUS ? <FloatingMinus /> : null}
+
+      {/* HERO */}
       <section className="relative pt-14">
         <div className="relative h-[520px] md:h-[600px] w-full overflow-hidden">
-          <Image
-            src="/images/hero.jpg"
-            alt=""
-            fill
-            priority
-            className="object-cover"
-          />
-          {/* Sadece okunabilirlik için hafif vignette; görüntüyü boğmaz */}
+          <Image src="/images/hero.jpg" alt="" fill priority className="object-cover" />
           <div className="absolute inset-0 bg-[radial-gradient(1200px_circle_at_15%_25%,rgba(0,0,0,.55),rgba(0,0,0,.15),rgba(0,0,0,0))]" />
           <div className="absolute inset-0 bg-gradient-to-r from-black/35 via-black/10 to-transparent" />
 
@@ -322,7 +419,7 @@ export default function HomePage() {
                   transition={{ duration: 0.8, ease, delay: 0.08 }}
                   className="mt-4 text-sm md:text-base text-white/85"
                 >
-                  Opsstay, misafir geçmişini anonim ve kurumsal bir dile çevirerek yalnızca operasyon için gerekli özeti sunar.
+                  OpsStay, misafir geçmişini anonim ve kurumsal bir dile çevirerek yalnızca operasyon için gerekli özeti sunar.
                   Risk uyarısı gelir, son kararı her zaman işletme yönetimi verir.
                 </motion.p>
 
@@ -336,7 +433,7 @@ export default function HomePage() {
                     href="#cozumler"
                     className="inline-flex items-center justify-center rounded-full bg-[#0ea5ff] px-5 py-2.5 text-sm font-semibold text-[#061021] hover:bg-[#36b6ff] transition shadow-[0_14px_40px_rgba(14,165,255,.25)]"
                   >
-                    Opsstay’i keşfedin
+                    OpsStay’i keşfedin
                   </a>
                   <a
                     href="#akıs"
@@ -351,7 +448,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Çözümler — akışlı reveal */}
+      {/* Çözümler */}
       <Reveal id="cozumler" className="bg-[#eef6ff] pb-16 pt-12">
         <Trio />
 
@@ -364,7 +461,7 @@ export default function HomePage() {
               Her misafir için aynı standart, <span className="text-[#0ea5ff]">her karar için aynı güven.</span>
             </h2>
             <p className="mt-4 text-sm md:text-base text-[#0b1326]/70">
-              Opsstay, kişisel veri paylaşmadan misafir yolculuğuna dair kritik bilgileri tek ekranda toplar. Operasyon ekibi
+              OpsStay, kişisel veri paylaşmadan misafir yolculuğuna dair kritik bilgileri tek ekranda toplar. Operasyon ekibi
               farklı sistemlere dağılmış notların peşinden koşmaz; net bir çerçeve üzerinden tutarlı karar alır.
             </p>
           </div>
@@ -380,7 +477,7 @@ export default function HomePage() {
       <Reveal id="akıs" className="bg-[#f7fbff] pb-20 pt-6">
         <div className="mx-auto max-w-6xl px-6">
           <div className="inline-flex items-center rounded-full bg-[#e8f4ff] px-4 py-1 text-xs text-[#0b66c3] border border-[#cfe9ff]">
-            Opsstay sahada nasıl görünür?
+            OpsStay sahada nasıl görünür?
           </div>
 
           <h3 className="mt-4 text-3xl md:text-4xl font-extrabold text-[#0b1326] leading-tight">
@@ -388,7 +485,7 @@ export default function HomePage() {
           </h3>
 
           <p className="mt-3 max-w-3xl text-[#0b1326]/70">
-            Aşağı kaydırdıkça; resepsiyon, güvenlik, F&amp;B ve yönetim ekiplerinin Opsstay ile nasıl çalıştığını göreceksiniz.
+            Aşağı kaydırdıkça; resepsiyon, güvenlik, F&amp;B ve yönetim ekiplerinin OpsStay ile nasıl çalıştığını göreceksiniz.
             Her senaryo, scroll ile akış halinde anlatılır.
           </p>
 
@@ -396,7 +493,7 @@ export default function HomePage() {
             <ScenarioRow
               tag="Ön büro ekibi"
               titleOnImage="Resepsiyon / Ön Büro"
-              caption="Görselleri kendi gerçek karelerinizle değiştirerek birebir aynı düzeni koruyabilirsiniz."
+              caption=""
               image="/images/scenario-1.jpg"
               heading="Kişisel veri yok, tam kontrol sizde."
               body="Misafir otele gelmeden önce geçmişi anonim ve kurumsal bir dille özetlenir. Check-in anı daha öngörülebilir hale gelir."
@@ -411,7 +508,7 @@ export default function HomePage() {
             <ScenarioRow
               tag="Güvenlik ekibi"
               titleOnImage="Güvenlik / Gece Operasyonu"
-              caption="Görselleri kendi gerçek karelerinizle değiştirerek birebir aynı düzeni koruyabilirsiniz."
+              caption=""
               image="/images/scenario-2.jpg"
               heading="Gece vardiyasında sürpriz değil, öngörü var."
               body="Gece ekibi için özet görünür; olağan dışı durumlar kurumsal bir ifade ile işaretlenir. Refleksle değil, bilgiyle hareket edilir."
@@ -426,10 +523,10 @@ export default function HomePage() {
             <ScenarioRow
               tag="Restoran & bar"
               titleOnImage="F&B / Servis Ekibi"
-              caption="Görselleri kendi gerçek karelerinizle değiştirerek birebir aynı düzeni koruyabilirsiniz."
+              caption=""
               image="/images/scenario-3.jpg"
               heading="Masaya oturmadan önce beklentiyi bilirsiniz."
-              body="Opsstay, deneyimi ilk temastan önce hazırlayabilmeniz için operasyonel olarak gerekli özeti sunar."
+              body="OpsStay, deneyimi ilk temastan önce hazırlayabilmeniz için operasyonel olarak gerekli özeti sunar."
               bullets={[
                 "Tercihler ve hassasiyetler özetlenir.",
                 "Ekip daha tutarlı bir deneyim sunar.",
@@ -441,7 +538,7 @@ export default function HomePage() {
             <ScenarioRow
               tag="Genel müdür & gelir"
               titleOnImage="Yönetim / Revenue"
-              caption="Görselleri kendi gerçek karelerinizle değiştirerek birebir aynı düzeni koruyabilirsiniz."
+              caption=""
               image="/images/scenario-4.jpg"
               heading="Oda numarasından değil, ilişki değerinden bakarsınız."
               body="Misafirler tek tek olaylar yerine bütün yolculuklarıyla izlenir. Stratejik kararlar daha net bir çerçeve ile desteklenir."
@@ -450,18 +547,18 @@ export default function HomePage() {
                 "Departman notları standart dile oturur.",
                 "Yönetim büyük resme bakar.",
               ]}
-              quote="Opsstay, misafirlerimizi sadece ‘oda’ değil, ‘ilişki’ olarak görmemizi sağladı."
+              quote="OpsStay, misafirlerimizi sadece ‘oda’ değil, ‘ilişki’ olarak görmemizi sağladı."
             />
           </div>
 
           <div className="mt-10 flex items-center justify-between text-xs text-[#0b1326]/45">
-            <span>© 2025 Opsstay. Tüm hakları saklıdır.</span>
-            <span>Opsstay yalnızca operasyon doğrulaması üretir.</span>
+            <span>© 2025 OpsStay. Tüm hakları saklıdır.</span>
+            <span>OpsStay yalnızca operasyon doğrulaması üretir.</span>
           </div>
         </div>
       </Reveal>
 
-      {/* İletişim — SAYFA İÇİNDE NET ŞEKİLDE VAR, LinkedIn/Dribbble YOK */}
+      {/* İletişim */}
       <Reveal className="bg-[#0a1020]">
         <ContactSection />
       </Reveal>

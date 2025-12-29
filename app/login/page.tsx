@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import Image from "next/image";
+import { motion, useReducedMotion } from "framer-motion";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -23,12 +24,12 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-     const res = await fetch("/api/auth/login", {
-  method: "POST",
-  headers: { "content-type": "application/json" },
-  credentials: "include",
-  body: JSON.stringify({ email, password }),
-});
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password }),
+      });
 
       const data = await res.json().catch(() => ({}));
 
@@ -48,11 +49,63 @@ export default function LoginPage() {
     }
   }
 
+  const reduceMotion = useReducedMotion();
+
+  const slides = [
+    "/images/login-slides/slide-1.jpg",
+    "/images/login-slides/slide-2.jpg",
+    "/images/login-slides/slide-3.jpg",
+    "/images/login-slides/slide-4.jpg",
+  ];
+
+  // Kesintisiz akış için iki kez kopyala
+  const track = [...slides, ...slides];
+
   return (
     <main className="min-h-screen bg-[#050B14] text-white">
-      {/* Arka plan: image 404 olmasın diye lokal dosyaya bağlı değil */}
+      {/* Arka plan: tam ekran akan görsel akışı + mevcut gradient overlay */}
       <div className="pointer-events-none fixed inset-0">
+        {/* FULLSCREEN MARQUEE */}
+        {!reduceMotion && (
+          <motion.div
+            className="absolute inset-0 flex"
+            style={{ width: "200%", willChange: "transform" }}
+            animate={{ x: ["0%", "-50%"] }}
+            transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
+          >
+            {track.map((src, i) => (
+              <div key={`bg-${i}`} className="relative h-full w-1/8">
+                {/* w-1/8: 8 öğe (4+4) => her biri ekranda dengeli akar */}
+                <Image
+                  src={src}
+                  alt=""
+                  fill
+                  priority={i < 2}
+                  sizes="100vw"
+                  className="object-cover"
+                />
+              </div>
+            ))}
+          </motion.div>
+        )}
+
+        {/* Reduce motion: sabit arka plan */}
+        {reduceMotion && (
+          <div className="absolute inset-0">
+            <Image
+              src={slides[0]}
+              alt=""
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover"
+            />
+          </div>
+        )}
+
+        {/* Mevcut ışık efektin (korundu) */}
         <div className="absolute inset-0 bg-[radial-gradient(1200px_600px_at_20%_20%,rgba(14,165,255,0.18),transparent_55%),radial-gradient(1000px_500px_at_80%_10%,rgba(36,99,235,0.16),transparent_50%),radial-gradient(900px_500px_at_60%_90%,rgba(59,130,246,0.12),transparent_55%)]" />
+        {/* Okunabilirlik için koyu katman (korundu) */}
         <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(5,11,20,0.6),rgba(5,11,20,0.92))]" />
       </div>
 
@@ -68,10 +121,7 @@ export default function LoginPage() {
           </div>
         </Link>
 
-        <Link
-          href="/"
-          className="text-sm text-white/70 hover:text-white transition"
-        >
+        <Link href="/" className="text-sm text-white/70 hover:text-white transition">
           Ana sayfaya dön
         </Link>
       </header>
@@ -92,8 +142,8 @@ export default function LoginPage() {
               Panel erişimi için güvenli giriş
             </h1>
             <p className="mt-4 text-white/65 text-sm leading-relaxed max-w-md">
-              Operasyon süreçleri için yetkilendirilmiş kullanıcılar bu alandan
-              panele erişir. Güvenlik ve oturum doğrulaması otomatik yürütülür.
+              Operasyon süreçleri için yetkilendirilmiş kullanıcılar bu alandan panele erişir.
+              Güvenlik ve oturum doğrulaması otomatik yürütülür.
             </p>
 
             <div className="mt-8 grid gap-3 max-w-md">
