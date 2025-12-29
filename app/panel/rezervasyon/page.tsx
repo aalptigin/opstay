@@ -17,8 +17,11 @@ type ReservationRow = {
   customer_full_name?: string;
   customer_phone?: string;
 
-  child_u7_count?: string; // sadece Happy Moons
-  staff_full_name?: string;
+  // ✅ DÜZELTME: Alan adları kod.gs ile uyumlu hale getirildi
+  kids_u7?: string;
+  child_u7?: string;
+  officer_name?: string;
+  authorized_name?: string;
 
   note?: string;
 
@@ -115,7 +118,9 @@ export default function ReservationsPage() {
         customer_full_name: customerFullName,
         customer_phone: customerPhone,
 
-        staff_full_name: staffFullName,
+        // ✅ DÜZELTME: staff_full_name yerine officer_name
+        officer_name: staffFullName,
+        
         note,
 
         // geriye uyumluluk (backend eski alanları kullanıyorsa)
@@ -124,8 +129,11 @@ export default function ReservationsPage() {
         phone: customerPhone,
       };
 
-      // child_u7_count sadece Happy Moons
-      if (restaurant === "Happy Moons") payload.child_u7_count = childU7Count;
+      // ✅ DÜZELTME: child_u7_count yerine kids_u7 ve child_u7
+      if (restaurant === "Happy Moons") {
+        payload.kids_u7 = childU7Count;
+        payload.child_u7 = childU7Count;
+      }
 
       const res = await fetch("/api/reservations", {
         method: "POST",
@@ -385,9 +393,13 @@ export default function ReservationsPage() {
                   <td className="px-5 py-3 whitespace-nowrap">{viewCustomerName(r)}</td>
                   <td className="px-5 py-3 text-white/70 whitespace-nowrap">{viewCustomerPhone(r)}</td>
                   <td className="px-5 py-3 text-white/70 whitespace-nowrap">
-                    {r.restaurant === "Happy Moons" ? (r.child_u7_count || "-") : "-"}
+                    {/* ✅ DÜZELTME: kids_u7 ve child_u7 kontrolü */}
+                    {r.restaurant === "Happy Moons" ? (r.kids_u7 || r.child_u7 || "-") : "-"}
                   </td>
-                  <td className="px-5 py-3 text-white/70 whitespace-nowrap">{r.staff_full_name || "-"}</td>
+                  <td className="px-5 py-3 text-white/70 whitespace-nowrap">
+                    {/* ✅ DÜZELTME: officer_name ve authorized_name kontrolü */}
+                    {r.officer_name || r.authorized_name || "-"}
+                  </td>
                   <td className="px-5 py-3 text-white/70 min-w-[260px]">{r.note || "-"}</td>
                 </tr>
               ))}
