@@ -65,13 +65,17 @@ function normalizeTime(v: any) {
 
 function normReservationRow(r: Row) {
   const restaurant = s(pick(r, ["restaurant", "restaurant_name"]));
-  const reservation_no = s(pick(r, ["reservation_no", "reservation_n0", "reservationNumber", "reservation_id"]));
+  const reservation_no = s(
+    pick(r, ["reservation_no", "reservation_n0", "reservationNumber", "reservation_id"])
+  );
   const table_no = s(pick(r, ["table_no", "table_n0", "masa_no"]));
 
   let date = normalizeDate(pick(r, ["date", "gun_ay_yil"]));
   let time = normalizeTime(pick(r, ["time", "saat"]));
 
-  const customer_full_name = s(pick(r, ["customer_full_name", "full_name", "guest_full_name"]));
+  const customer_full_name = s(
+    pick(r, ["customer_full_name", "full_name", "guest_full_name"])
+  );
   const customer_phone = s(pick(r, ["customer_phone", "phone", "guest_phone"]));
 
   const kids_u7 = s(pick(r, ["kids_u7", "child_u7", "children_u7"]));
@@ -105,10 +109,6 @@ export default function Page() {
   const [q, setQ] = useState("");
   const [restaurant, setRestaurant] = useState<string>("all");
   const [date, setDate] = useState<string>(""); // dd/MM/yyyy
-  const [onlyWithBlacklist, setOnlyWithBlacklist] = useState(false);
-
-  // blacklist telefonu lookup (opsiyonel: aynı telefon kara listede var mı)
-  const [blackPhones, setBlackPhones] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let alive = true;
@@ -118,32 +118,14 @@ export default function Page() {
       setErr("");
 
       try {
-        const [r1, r2] = await Promise.all([
-          fetch("/api/reservations", { cache: "no-store" }),
-          fetch("/api/records", { cache: "no-store" }), // kara liste telefonları için
-        ]);
-
+        const r1 = await fetch("/api/reservations", { cache: "no-store" });
         const j1 = await r1.json();
-        const j2 = await r2.json();
 
         const rr = Array.isArray(j1?.rows) ? j1.rows : [];
         const normalized = rr.map(normReservationRow);
 
-        // records -> phone set
-        const recRows = Array.isArray(j2?.rows) ? j2.rows : [];
-        const phones = new Set<string>();
-        for (const r of recRows) {
-          const phone = s(pick(r, ["phone", "customer_phone"])).replace(/\D/g, "");
-          const status = s(pick(r, ["status"]));
-          // “blacklist” mantığı sende sheet’e göre değişebilir; burada “active” ve benzeri varsa da ekliyoruz.
-          if (phone) phones.add(phone);
-          // status filtresi istersen sonra keskinleştiririz
-          void status;
-        }
-
         if (!alive) return;
         setRows(normalized);
-        setBlackPhones(phones);
       } catch (e: any) {
         if (!alive) return;
         setErr(e?.message || "Yükleme hatası");
@@ -176,11 +158,6 @@ export default function Page() {
       if (restaurant !== "all" && s(r.restaurant) !== restaurant) return false;
       if (d && s(r.date) !== d) return false;
 
-      if (onlyWithBlacklist) {
-        const p = s(r.customer_phone).replace(/\D/g, "");
-        if (!p || !blackPhones.has(p)) return false;
-      }
-
       if (!qq) return true;
 
       const hay = [
@@ -200,7 +177,7 @@ export default function Page() {
 
       return hay.includes(qq);
     });
-  }, [rows, q, restaurant, date, onlyWithBlacklist, blackPhones]);
+  }, [rows, q, restaurant, date]);
 
   return (
     <div className="space-y-4">
@@ -256,15 +233,6 @@ export default function Page() {
               className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none focus:border-white/20"
             />
           </div>
-
-          <label className="mt-2 flex items-center gap-2 text-sm text-white/80 md:col-span-4">
-            <input
-              type="checkbox"
-              checked={onlyWithBlacklist}
-              onChange={(e) => setOnlyWithBlacklist(e.target.checked)}
-            />
-            Sadece kara liste ile eşleşen telefonlar
-          </label>
         </div>
       </div>
 
@@ -290,20 +258,19 @@ export default function Page() {
                 <th className="text-left px-4 py-3">Çocuk (7-)</th>
                 <th className="text-left px-4 py-3">Yetkili</th>
                 <th className="text-left px-4 py-3">Not</th>
-                <th className="text-left px-4 py-3">Kara Liste</th>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-white/10">
               {filtered.map((r, idx) => {
-                const phoneDigits = s(r.customer_phone).replace(/\D/g, "");
-                const inBlacklist = phoneDigits && blackPhones.has(phoneDigits);
-
                 const officer = s(r.officer_name) || s(r.officer_email) || "-";
                 const kids = s(r.kids_u7) || "-";
 
                 return (
-                  <tr key={String(r.reservation_id || r.id || idx)} className="hover:bg-white/5">
+                  <tr
+                    key={String(r.reservation_id || r.id || idx)}
+                    className="hover:bg-white/5"
+                  >
                     <td className="px-4 py-3">{s(r.restaurant) || "-"}</td>
                     <td className="px-4 py-3">{s(r.reservation_no) || "-"}</td>
                     <td className="px-4 py-3">{s(r.table_no) || "-"}</td>
@@ -314,22 +281,13 @@ export default function Page() {
                     <td className="px-4 py-3">{kids}</td>
                     <td className="px-4 py-3">{officer}</td>
                     <td className="px-4 py-3">{s(r.note) || "-"}</td>
-                    <td className="px-4 py-3">
-                      {inBlacklist ? (
-                        <span className="rounded-full border border-red-400/30 bg-red-400/10 px-2 py-1 text-xs text-red-200">
-                          Eşleşme
-                        </span>
-                      ) : (
-                        <span className="text-white/40 text-xs">-</span>
-                      )}
-                    </td>
                   </tr>
                 );
               })}
 
               {!loading && filtered.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-10 text-center text-white/50" colSpan={11}>
+                  <td className="px-4 py-10 text-center text-white/50" colSpan={10}>
                     Sonuç bulunamadı.
                   </td>
                 </tr>

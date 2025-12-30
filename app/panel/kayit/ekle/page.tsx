@@ -8,7 +8,7 @@ type ApiRow = {
   record_id: string;
   full_name: string;
   phone: string;
-  
+
   reservation_no?: string;
   date?: string;
   time?: string;
@@ -19,7 +19,7 @@ type ApiRow = {
   restaurant_name?: string;
   restaurant?: string;
   created_at?: string;
-  
+
   risk_level?: string;
   summary?: string;
 };
@@ -34,24 +34,22 @@ export default function KayitEklePage() {
   // form state
   const [reservationNo, setReservationNo] = useState("");
   const now = new Date();
+
   const [day, setDay] = useState(pad2(now.getDate()));
   const [month, setMonth] = useState(pad2(now.getMonth() + 1));
   const [year, setYear] = useState(String(now.getFullYear()));
+
+  // Saat alanı
+  const [hour, setHour] = useState(pad2(now.getHours()));
+  const [minute, setMinute] = useState(pad2(now.getMinutes()));
+
   const [guestFullName, setGuestFullName] = useState("");
   const [tableNo, setTableNo] = useState("");
   const [phone, setPhone] = useState("");
   const [addedBy, setAddedBy] = useState("");
   const [note, setNote] = useState("");
-  
-  const [restaurant, setRestaurant] = useState<"Roof" | "Happy Moons">("Roof");
 
-  // list + filter state
-  const [rows, setRows] = useState<ApiRow[]>([]);
-  const [q, setQ] = useState("");
-  const [fDay, setFDay] = useState("");
-  const [fMonth, setFMonth] = useState("");
-  const [fYear, setFYear] = useState("");
-  const [loadingList, setLoadingList] = useState(true);
+  const [restaurant, setRestaurant] = useState<"Roof" | "Happy Moons">("Roof");
 
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -64,78 +62,32 @@ export default function KayitEklePage() {
     return `${y}-${m}-${d}`;
   }, [day, month, year]);
 
-  const filterIsoDate = useMemo(() => {
-    const y = fYear.trim();
-    const m = fMonth.trim();
-    const d = fDay.trim();
-    if (!y || !m || !d) return "";
-    return `${y}-${m}-${d}`;
-  }, [fDay, fMonth, fYear]);
+  const timeValue = useMemo(() => {
+    const h = hour.trim();
+    const m = minute.trim();
+    if (!h || !m) return "";
+    return `${pad2(Number(h))}:${pad2(Number(m))}`;
+  }, [hour, minute]);
 
   async function loadMe() {
     try {
       const r = await fetch("/api/auth/me", { cache: "no-store" });
       const d = (await r.json()) as Me;
-      if (r.ok && d?.user?.full_name) setAddedBy(d.user.full_name);
+      if (r.ok && d?.user?.full_name) {
+        setAddedBy(d.user.full_name);
+      }
+      const rest = d?.user?.restaurant_name;
+      if (rest === "Roof" || rest === "Happy Moons") {
+        setRestaurant(rest);
+      }
     } catch {
       // sessiz geç
     }
   }
 
-  async function loadList() {
-    setLoadingList(true);
-    try {
-      const res = await fetch("/api/records", { cache: "no-store" });
-      const data = await res.json();
-      if (res.ok) setRows(data.rows || []);
-      else setMsg(data?.error || "Liste alınamadı");
-    } catch (e: any) {
-      setMsg(e?.message || "Liste alınamadı");
-    } finally {
-      setLoadingList(false);
-    }
-  }
-
   useEffect(() => {
     loadMe();
-    loadList();
   }, []);
-
-  const filtered = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    return rows.filter((r) => {
-      if (filterIsoDate) {
-        const rDate = r.date || "";
-        if (rDate === filterIsoDate) return true;
-        const match = rDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-        if (match) {
-          const converted = `${match[3]}-${match[2]}-${match[1]}`;
-          if (converted !== filterIsoDate) return false;
-        } else if (rDate !== filterIsoDate) {
-          return false;
-        }
-      }
-
-      if (!s) return true;
-
-      const hay = [
-        r.record_id || "",
-        r.full_name || "",
-        r.phone || "",
-        r.reservation_no || "",
-        r.table_no || "",
-        r.authorized_name || "",
-        r.date || "",
-        r.note || "",
-        r.restaurant_name || "",
-        r.restaurant || "",
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      return hay.includes(s);
-    });
-  }, [rows, q, filterIsoDate]);
 
   async function onSubmit() {
     setMsg(null);
@@ -149,7 +101,7 @@ export default function KayitEklePage() {
         phone,
         reservation_no: reservationNo,
         date: isoDate,
-        time: "00:00",
+        time: timeValue || "00:00",
         table_no: tableNo,
         authorized_name: addedBy,
         note,
@@ -171,8 +123,6 @@ export default function KayitEklePage() {
       setTableNo("");
       setPhone("");
       setNote("");
-
-      await loadList();
     } catch (e: any) {
       setMsg(e?.message || "Hata");
     } finally {
@@ -183,9 +133,11 @@ export default function KayitEklePage() {
   return (
     <div>
       <div className="text-white/60 text-xs tracking-[0.35em] font-semibold">KAYIT</div>
-      <h1 className="mt-2 text-2xl md:text-3xl font-extrabold text-white">Kara Liste'ye Aktar</h1>
+      <h1 className="mt-2 text-2xl md:text-3xl font-extrabold text-white">
+        Kara Liste&apos;ye Aktar
+      </h1>
       <p className="mt-2 text-sm text-white/60">
-        Rezervasyon kaydı üzerinden misafiri blacklist'e ekleyin ve aynı ekranda mevcut kayıtları görüntüleyin.
+        Rezervasyon kaydı üzerinden misafiri blacklist&apos;e ekleyin.
       </p>
 
       {/* FORM */}
@@ -195,18 +147,6 @@ export default function KayitEklePage() {
         transition={{ duration: 0.45 }}
         className="mt-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5 relative"
       >
-        {/* Restoran Seçimi (Sağ Üst) */}
-        <div className="absolute -top-4 right-4 z-20">
-          <select
-            value={restaurant}
-            onChange={(e) => setRestaurant(e.target.value as "Roof" | "Happy Moons")}
-            className="rounded-xl border border-white/15 bg-[#050B14]/90 px-4 py-2 text-sm text-white/90 shadow-lg backdrop-blur outline-none"
-          >
-            <option value="Roof">Roof</option>
-            <option value="Happy Moons">Happy Moons</option>
-          </select>
-        </div>
-
         <div className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="text-xs text-white/60">Rezervasyon numarası</label>
@@ -219,29 +159,64 @@ export default function KayitEklePage() {
           </div>
 
           <div>
-            <label className="text-xs text-white/60">Gün / Ay / Yıl</label>
+            <label className="text-xs text-white/60">Gün / Ay / Yıl • Saat</label>
             <div className="mt-2 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+              {/* Tarih */}
               <input
                 value={day}
-                onChange={(e) => setDay(e.target.value.replace(/\D/g, "").slice(0, 2))}
+                onChange={(e) =>
+                  setDay(e.target.value.replace(/\D/g, "").slice(0, 2))
+                }
                 className="w-14 bg-transparent text-white outline-none text-sm"
                 placeholder="GG"
               />
               <span className="text-white/30">/</span>
               <input
                 value={month}
-                onChange={(e) => setMonth(e.target.value.replace(/\D/g, "").slice(0, 2))}
+                onChange={(e) =>
+                  setMonth(e.target.value.replace(/\D/g, "").slice(0, 2))
+                }
                 className="w-14 bg-transparent text-white outline-none text-sm"
                 placeholder="AA"
               />
               <span className="text-white/30">/</span>
               <input
                 value={year}
-                onChange={(e) => setYear(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                onChange={(e) =>
+                  setYear(e.target.value.replace(/\D/g, "").slice(0, 4))
+                }
                 className="w-20 bg-transparent text-white outline-none text-sm"
                 placeholder="YYYY"
               />
-              <div className="ml-auto text-xs text-white/40">{isoDate || "—"}</div>
+
+              {/* Ayırıcı */}
+              <span className="mx-3 h-6 w-px bg-white/15" />
+
+              {/* Saat */}
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-white/50">Saat</span>
+                <input
+                  value={hour}
+                  onChange={(e) =>
+                    setHour(e.target.value.replace(/\D/g, "").slice(0, 2))
+                  }
+                  className="w-10 bg-transparent text-white outline-none text-sm"
+                  placeholder="SS"
+                />
+                <span className="text-white/30">:</span>
+                <input
+                  value={minute}
+                  onChange={(e) =>
+                    setMinute(e.target.value.replace(/\D/g, "").slice(0, 2))
+                  }
+                  className="w-10 bg-transparent text-white outline-none text-sm"
+                  placeholder="DD"
+                />
+              </div>
+
+              <div className="ml-auto text-xs text-white/40 font-mono">
+                {(isoDate || "—") + (timeValue ? ` ${timeValue}` : "")}
+              </div>
             </div>
           </div>
 
@@ -296,15 +271,10 @@ export default function KayitEklePage() {
           />
         </div>
 
-        {/* ✅ Eklenme Saati Önizlemesi */}
+        {/* Kara listeye eklenme saati bilgisi - saat alanı ile senkron */}
         <div className="mt-4 flex items-center gap-2 text-xs text-white/50">
           <span>Kara listeye eklenme saati:</span>
-          <span className="text-white/70 font-mono">
-            {new Date().toLocaleTimeString("tr-TR", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
+          <span className="text-white/70 font-mono">{timeValue || "—"}</span>
         </div>
 
         <div className="mt-5 flex items-center justify-between gap-3">
@@ -315,114 +285,8 @@ export default function KayitEklePage() {
             disabled={saving}
             className="rounded-xl bg-[#0ea5ff] px-5 py-3 text-sm font-semibold text-[#06121f] disabled:opacity-60"
           >
-            {saving ? "Kaydediliyor..." : "Blacklist'e Ekle"}
+            {saving ? "Kaydediliyor..." : "Kara Liste'ye Aktar"}
           </button>
-        </div>
-      </motion.div>
-
-      {/* FİLTRE + LİSTE */}
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.55 }}
-        className="mt-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden"
-      >
-        <div className="px-5 py-4 flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
-          <div className="text-white font-semibold">Blacklist Kayıtları</div>
-
-          <div className="flex flex-wrap gap-3 items-center">
-            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-              <input
-                value={fDay}
-                onChange={(e) => setFDay(e.target.value.replace(/\D/g, "").slice(0, 2))}
-                className="w-12 bg-transparent text-white outline-none text-sm"
-                placeholder="GG"
-              />
-              <span className="text-white/30">/</span>
-              <input
-                value={fMonth}
-                onChange={(e) => setFMonth(e.target.value.replace(/\D/g, "").slice(0, 2))}
-                className="w-12 bg-transparent text-white outline-none text-sm"
-                placeholder="AA"
-              />
-              <span className="text-white/30">/</span>
-              <input
-                value={fYear}
-                onChange={(e) => setFYear(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                className="w-16 bg-transparent text-white outline-none text-sm"
-                placeholder="YYYY"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setFDay("");
-                  setFMonth("");
-                  setFYear("");
-                }}
-                className="ml-2 text-xs text-white/55 hover:text-white"
-              >
-                Temizle
-              </button>
-            </div>
-
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              className="w-full sm:w-[340px] rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none"
-              placeholder="Ara: rezervasyon no, isim, masa, telefon, yetkili..."
-            />
-
-            <button type="button" onClick={loadList} className="text-sm text-white/70 hover:text-white">
-              Yenile
-            </button>
-          </div>
-        </div>
-
-        <div className="overflow-auto">
-          <table className="w-full text-sm">
-            <thead className="text-white/55">
-              <tr className="border-t border-white/10">
-                <th className="text-left px-5 py-3 whitespace-nowrap">Rez. No</th>
-                <th className="text-left px-5 py-3 whitespace-nowrap">Restoran</th>
-                <th className="text-left px-5 py-3 whitespace-nowrap">Tarih</th>
-                <th className="text-left px-5 py-3 whitespace-nowrap">Misafir</th>
-                <th className="text-left px-5 py-3 whitespace-nowrap">Masa</th>
-                <th className="text-left px-5 py-3 whitespace-nowrap">Telefon</th>
-                <th className="text-left px-5 py-3 whitespace-nowrap">Ekleyen</th>
-                <th className="text-left px-5 py-3 whitespace-nowrap">Not</th>
-              </tr>
-            </thead>
-            <tbody className="text-white/85">
-              {loadingList ? (
-                <tr className="border-t border-white/10">
-                  <td className="px-5 py-10 text-white/55" colSpan={8}>
-                    Yükleniyor...
-                  </td>
-                </tr>
-              ) : filtered.length === 0 ? (
-                <tr className="border-t border-white/10">
-                  <td className="px-5 py-10 text-white/55" colSpan={8}>
-                    Kayıt yok.
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((r) => (
-                  <tr key={r.record_id} className="border-t border-white/10">
-                    <td className="px-5 py-3 text-white/70 whitespace-nowrap">{r.reservation_no || "-"}</td>
-                    <td className="px-5 py-3 text-white/70 whitespace-nowrap">{r.restaurant_name || r.restaurant || "-"}</td>
-                    <td className="px-5 py-3 text-white/70 whitespace-nowrap">{r.date || "-"}</td>
-                    <td className="px-5 py-3 whitespace-nowrap">{r.full_name || "-"}</td>
-                    <td className="px-5 py-3 text-white/70 whitespace-nowrap">{r.table_no || "-"}</td>
-                    <td className="px-5 py-3 text-white/70 whitespace-nowrap">{r.phone || "-"}</td>
-                    <td className="px-5 py-3 text-white/70 whitespace-nowrap">{r.authorized_name || "-"}</td>
-                    <td className="px-5 py-3 text-white/70">
-                      <div className="max-w-[520px] line-clamp-2">{r.note || "-"}</div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
         </div>
       </motion.div>
     </div>
