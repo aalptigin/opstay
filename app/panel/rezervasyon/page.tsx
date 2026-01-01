@@ -31,10 +31,38 @@ type ReservationRow = {
   phone?: string;
 };
 
+type BlacklistCheckResponse = {
+  ok: true;
+  is_blacklisted: boolean;
+  match?: {
+    full_name?: string;
+    phone?: string;
+    note?: string;
+    risk_level?: string;
+  };
+  message?: string;
+};
+
 export default function ReservationsPage() {
   const [rows, setRows] = useState<ReservationRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+
+  // Misafir Sorgulama (Ad Soyad + Telefon)
+  const [lookupName, setLookupName] = useState("");
+  const [lookupPhone, setLookupPhone] = useState("");
+
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupErr, setLookupErr] = useState<string | null>(null);
+  const [lookupResult, setLookupResult] = useState<BlacklistCheckResponse | null>(null);
+
+  // Tablo filtre (sorgulama alanı ile eş zamanlı)
+  const [tableFilterName, setTableFilterName] = useState("");
+  const [tableFilterPhone, setTableFilterPhone] = useState("");
+
+  function normPhone(v: string) {
+    return String(v ?? "").replace(/[^\d+]/g, "").trim();
+  }
 
   // Restoran seçimi (buton + mini menü)
   const [restaurant, setRestaurant] = useState<"Happy Moons" | "Roof">("Happy Moons");
@@ -82,6 +110,19 @@ export default function ReservationsPage() {
     return `${d}T${t}:00`;
   }, [date, time]);
 
+  function onLookupName(v: string) {
+    setLookupName(v);
+    setCustomerFullName(v); // form alanını eş zamanlı doldur
+    setTableFilterName(v); // tablo filtre
+  }
+
+  function onLookupPhone(v: string) {
+    const p = normPhone(v);
+    setLookupPhone(p);
+    setCustomerPhone(p); // form alanını eş zamanlı doldur
+    setTableFilterPhone(p); // tablo filtre
+  }
+
   async function load() {
     setMsg(null);
     setLoading(true);
@@ -97,9 +138,56 @@ export default function ReservationsPage() {
     }
   }
 
+  async function runBlacklistLookup(name: string, phone: string) {
+    const n = String(name ?? "").trim();
+    const p = normPhone(phone ?? "");
+
+    setLookupErr(null);
+    setLookupResult(null);
+
+    if (!n || !p) return;
+
+    setLookupLoading(true);
+    try {
+      const res = await fetch("/api/blacklist/check", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ full_name: n, phone: p }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Sorgulama başarısız.");
+
+      setLookupResult(data as BlacklistCheckResponse);
+    } catch (e: any) {
+      setLookupErr(e?.message || "Sorgulama sırasında hata oluştu.");
+    } finally {
+      setLookupLoading(false);
+    }
+  }
+
   useEffect(() => {
     load();
   }, []);
+
+  // Otomatik sorgu (debounce): Ad Soyad + Telefon dolunca 450ms sonra kontrol
+  useEffect(() => {
+    const n = lookupName.trim();
+    const p = lookupPhone.trim();
+
+    setLookupErr(null);
+
+    if (!n || !p) {
+      setLookupResult(null);
+      return;
+    }
+
+    const t = setTimeout(() => {
+      runBlacklistLookup(n, p);
+    }, 450);
+
+    return () => clearTimeout(t);
+  }, [lookupName, lookupPhone]);
 
   async function createReservation() {
     setMsg(null);
@@ -120,7 +208,7 @@ export default function ReservationsPage() {
 
         // ✅ DÜZELTME: staff_full_name yerine officer_name
         officer_name: staffFullName,
-        
+
         note,
 
         // geriye uyumluluk (backend eski alanları kullanıyorsa)
@@ -156,6 +244,14 @@ export default function ReservationsPage() {
       setStaffFullName("");
       setNote("");
 
+      // Sorgulama alanı da temizlensin (form ile çakışmasın)
+      setLookupName("");
+      setLookupPhone("");
+      setLookupErr(null);
+      setLookupResult(null);
+      setTableFilterName("");
+      setTableFilterPhone("");
+
       await load();
     } catch (e: any) {
       setMsg(e?.message || "Hata");
@@ -181,6 +277,19 @@ export default function ReservationsPage() {
   function viewCustomerPhone(r: ReservationRow) {
     return r.customer_phone || r.phone || "-";
   }
+
+  const filteredRows = useMemo(() => {
+    const n = tableFilterName.trim().toLowerCase();
+    const p = normPhone(tableFilterPhone);
+
+    return rows.filter((r) => {
+      const rn = String(r.customer_full_name || r.full_name || "").toLowerCase();
+      const rp = normPhone(String(r.customer_phone || r.phone || ""));
+      const nameOk = !n || rn.includes(n);
+      const phoneOk = !p || rp.includes(p);
+      return nameOk && phoneOk;
+    });
+  }, [rows, tableFilterName, tableFilterPhone]);
 
   return (
     <div>
@@ -338,6 +447,100 @@ export default function ReservationsPage() {
           />
         </div>
 
+        {/* Misafir Sorgulama */}
+        <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-white">Misafir Sorgulama</div>
+              <div className="mt-1 text-xs text-white/60">
+                Ad Soyad + Telefon ile sorgu yapılır. Girilen bilgiler rezervasyon formuna ve aşağıdaki liste filtresine
+                eş zamanlı aktarılır.
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setLookupName("");
+                  setLookupPhone("");
+                  setLookupErr(null);
+                  setLookupResult(null);
+                  setTableFilterName("");
+                  setTableFilterPhone("");
+                  // form alanlarını da temizle (senkron)
+                  setCustomerFullName("");
+                  setCustomerPhone("");
+                }}
+                className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80 hover:bg-white/10"
+              >
+                Temizle
+              </button>
+
+              <button
+                type="button"
+                onClick={() => runBlacklistLookup(lookupName, lookupPhone)}
+                disabled={lookupLoading || !lookupName.trim() || !lookupPhone.trim()}
+                className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
+              >
+                {lookupLoading ? "Sorgulanıyor..." : "Sorgula"}
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-3 grid md:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-white/60">Ad Soyad</label>
+              <input
+                value={lookupName}
+                onChange={(e) => onLookupName(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
+                placeholder="Örn: Burak Yılmaz"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-white/60">Telefon</label>
+              <input
+                value={lookupPhone}
+                onChange={(e) => onLookupPhone(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
+                placeholder="05xx..."
+                inputMode="tel"
+              />
+            </div>
+          </div>
+
+          <div className="mt-3">
+            {lookupErr ? (
+              <div className="rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                {lookupErr}
+              </div>
+            ) : null}
+
+            {lookupResult?.ok ? (
+              lookupResult.is_blacklisted ? (
+                <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+                  <div className="font-semibold">Uyarı: Bu misafir kara listede görünüyor.</div>
+                  {lookupResult.match?.note ? (
+                    <div className="mt-1 text-xs text-amber-100/80">Not: {lookupResult.match.note}</div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100">
+                  Kara listede eşleşme bulunamadı.
+                </div>
+              )
+            ) : (
+              <div className="text-xs text-white/45">
+                {lookupName.trim() && lookupPhone.trim()
+                  ? "Sonuç bekleniyor..."
+                  : "Sorgulamak için Ad Soyad ve Telefon girin."}
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="mt-5 flex items-center justify-between gap-3">
           <div className="text-sm text-white/70">{msg}</div>
           <button
@@ -383,7 +586,7 @@ export default function ReservationsPage() {
             </thead>
 
             <tbody className="text-white/85">
-              {rows.map((r, idx) => (
+              {filteredRows.map((r, idx) => (
                 <tr key={(r.reservation_id || "") + idx} className="border-t border-white/10">
                   <td className="px-5 py-3 text-white/70 whitespace-nowrap">{r.restaurant || "-"}</td>
                   <td className="px-5 py-3 whitespace-nowrap">{r.reservation_no || "-"}</td>
@@ -404,7 +607,7 @@ export default function ReservationsPage() {
                 </tr>
               ))}
 
-              {rows.length === 0 && (
+              {filteredRows.length === 0 && (
                 <tr className="border-t border-white/10">
                   <td className="px-5 py-10 text-white/55" colSpan={10}>
                     Kayıt yok.
