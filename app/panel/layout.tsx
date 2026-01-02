@@ -143,7 +143,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
   return (
     <div className="min-h-screen flex bg-[#020617] text-white">
       {/* SOL MENÜ */}
-      <aside className="w-64 border-r border-white/10 bg-black/30 flex flex-col">
+      <aside className="w-64 shrink-0 sticky top-0 h-screen border-r border-white/10 bg-black/30 flex flex-col">
         {/* Başlık */}
         <div className="px-4 py-4 border-b border-white/10">
           <div className="text-sm font-semibold">OPSSTAY PANEL</div>
@@ -153,7 +153,14 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
         </div>
 
         {/* Gruplar */}
-        <div className="flex-1 px-3 py-4 space-y-4 overflow-y-auto text-sm">
+        <div className="flex-1 min-h-0 px-3 py-4 space-y-4 overflow-y-auto text-sm">
+          {/* ✅ Operasyon Kontrol Merkezi (ana sayfa) */}
+          <NavItem
+            href="/panel"
+            label="Operasyon Kontrol Merkezi"
+            active={pathname === "/panel"}
+          />
+
           {/* Rezervasyon */}
           <Section
             title="Rezervasyon"
@@ -171,9 +178,9 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
               active={pathname === "/panel/rezervasyon/duzenle"}
             />
             <NavItem
-              href="/panel"
+              href="/panel/rezervasyon/kayitlar"
               label="Rezervasyon Kayıtları"
-              active={pathname === "/panel"}
+              active={pathname === "/panel/rezervasyon/kayitlar"}
             />
           </Section>
 

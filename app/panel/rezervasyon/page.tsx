@@ -64,6 +64,38 @@ export default function ReservationsPage() {
     return String(v ?? "").replace(/[^\d+]/g, "").trim();
   }
 
+  function todayISO() {
+    const now = new Date();
+    const yyyy = String(now.getFullYear());
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  function normalizeToISODate(v: any) {
+    const raw = String(v ?? "").trim();
+    if (!raw) return "";
+    // ISO already
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+
+    // TR format like 02/01/2026 or 02.01.2026
+    const m = raw.match(/^(\d{2})[\/\.](\d{2})[\/\.](\d{4})$/);
+    if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+
+    // datetime string
+    if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) return raw.slice(0, 10);
+
+    const d = new Date(raw);
+    if (!Number.isNaN(d.getTime())) {
+      const yyyy = String(d.getFullYear());
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    return raw;
+  }
+
   // Restoran seçimi (buton + mini menü)
   const [restaurant, setRestaurant] = useState<"Happy Moons" | "Roof">("Happy Moons");
   const [restaurantOpen, setRestaurantOpen] = useState(false);
@@ -92,7 +124,7 @@ export default function ReservationsPage() {
   // 7) Saat altına -> Müşteri Telefon
   const [customerPhone, setCustomerPhone] = useState("");
 
-  // 8) 7 yaş altı çocuk sayısı (sadece Happy Moons)
+  // 8) 7 yaş altı çocuk sayısı (artık her iki restoran için de)
   const [childU7Count, setChildU7Count] = useState("");
 
   // 9) Rezervasyonu alan yetkili isim soyisim
@@ -217,11 +249,9 @@ export default function ReservationsPage() {
         phone: customerPhone,
       };
 
-      // ✅ DÜZELTME: child_u7_count yerine kids_u7 ve child_u7
-      if (restaurant === "Happy Moons") {
-        payload.kids_u7 = childU7Count;
-        payload.child_u7 = childU7Count;
-      }
+      // ✅ Artık her iki restoran için de çocuk sayısını gönderiyoruz
+      payload.kids_u7 = childU7Count;
+      payload.child_u7 = childU7Count;
 
       const res = await fetch("/api/reservations", {
         method: "POST",
@@ -282,13 +312,21 @@ export default function ReservationsPage() {
     const n = tableFilterName.trim().toLowerCase();
     const p = normPhone(tableFilterPhone);
 
-    return rows.filter((r) => {
-      const rn = String(r.customer_full_name || r.full_name || "").toLowerCase();
-      const rp = normPhone(String(r.customer_phone || r.phone || ""));
-      const nameOk = !n || rn.includes(n);
-      const phoneOk = !p || rp.includes(p);
-      return nameOk && phoneOk;
-    });
+    // sadece bugünün rezervasyonları
+    const today = todayISO();
+
+    return rows
+      .filter((r) => {
+        const rd = normalizeToISODate(viewDate(r));
+        return rd === today;
+      })
+      .filter((r) => {
+        const rn = String(r.customer_full_name || r.full_name || "").toLowerCase();
+        const rp = normPhone(String(r.customer_phone || r.phone || ""));
+        const nameOk = !n || rn.includes(n);
+        const phoneOk = !p || rp.includes(p);
+        return nameOk && phoneOk;
+      });
   }, [rows, tableFilterName, tableFilterPhone]);
 
   return (
@@ -326,8 +364,6 @@ export default function ReservationsPage() {
                     onClick={() => {
                       setRestaurant(x);
                       setRestaurantOpen(false);
-                      // Roof seçilince çocuk alanını otomatik boşalt
-                      if (x === "Roof") setChildU7Count("");
                     }}
                     className={[
                       "w-full text-left px-4 py-3 text-sm",
@@ -342,113 +378,8 @@ export default function ReservationsPage() {
           </div>
         </div>
 
-        {/* FORM GRID */}
-        <div className="grid md:grid-cols-2 gap-4">
-          {/* 2) Rezervasyon No */}
-          <div>
-            <label className="text-xs text-white/60">Rezervasyon numarası</label>
-            <input
-              value={reservationNo}
-              onChange={(e) => setReservationNo(e.target.value)}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
-              placeholder="Örn: RZV-1024"
-            />
-          </div>
-
-          {/* 3) Masa No */}
-          <div>
-            <label className="text-xs text-white/60">Masa numarası</label>
-            <input
-              value={tableNo}
-              onChange={(e) => setTableNo(e.target.value)}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
-              placeholder="Örn: 12"
-              inputMode="numeric"
-            />
-          </div>
-
-          {/* 4) Gün/Ay/Yıl (date) */}
-          <div>
-            <label className="text-xs text-white/60">Gün / Ay / Yıl</label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
-            />
-            {/* 6) altına müşteri adı */}
-            <div className="mt-3">
-              <label className="text-xs text-white/60">Müşteri isim soyisim</label>
-              <input
-                value={customerFullName}
-                onChange={(e) => setCustomerFullName(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
-                placeholder="Örn: Burak Yılmaz"
-              />
-            </div>
-          </div>
-
-          {/* 5) Saat (time) */}
-          <div>
-            <label className="text-xs text-white/60">Saat</label>
-            <input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
-            />
-            {/* 7) altına müşteri telefon */}
-            <div className="mt-3">
-              <label className="text-xs text-white/60">Müşteri telefon numarası</label>
-              <input
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
-                placeholder="05xx..."
-                inputMode="tel"
-              />
-            </div>
-          </div>
-
-          {/* 8) 7 yaş altı çocuk sayısı (sadece Happy Moons) */}
-          {restaurant === "Happy Moons" && (
-            <div>
-              <label className="text-xs text-white/60">7 yaş altı çocuk sayısı</label>
-              <input
-                value={childU7Count}
-                onChange={(e) => setChildU7Count(e.target.value.replace(/\D/g, "").slice(0, 2))}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
-                placeholder="0"
-                inputMode="numeric"
-              />
-            </div>
-          )}
-
-          {/* 9) Yetkili adı */}
-          <div>
-            <label className="text-xs text-white/60">Rezervasyonu alan yetkili (isim soyisim)</label>
-            <input
-              value={staffFullName}
-              onChange={(e) => setStaffFullName(e.target.value)}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
-              placeholder="Örn: Operasyon Personeli"
-            />
-          </div>
-        </div>
-
-        {/* Not */}
-        <div className="mt-4">
-          <label className="text-xs text-white/60">Müşteri notu</label>
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            className="mt-2 w-full min-h-[120px] rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
-            placeholder="Kısa not..."
-          />
-        </div>
-
-        {/* Misafir Sorgulama */}
-        <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+        {/* Misafir Sorgulama (EN ÜSTTE) */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-sm font-semibold text-white">Misafir Sorgulama</div>
@@ -541,6 +472,109 @@ export default function ReservationsPage() {
           </div>
         </div>
 
+        {/* FORM GRID */}
+        <div className="mt-4 grid md:grid-cols-2 gap-4">
+          {/* 2) Rezervasyon No */}
+          <div>
+            <label className="text-xs text-white/60">Rezervasyon numarası</label>
+            <input
+              value={reservationNo}
+              onChange={(e) => setReservationNo(e.target.value)}
+              className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
+              placeholder="Örn: RZV-1024"
+            />
+          </div>
+
+          {/* 3) Masa No */}
+          <div>
+            <label className="text-xs text-white/60">Masa numarası</label>
+            <input
+              value={tableNo}
+              onChange={(e) => setTableNo(e.target.value)}
+              className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
+              placeholder="Örn: 12"
+              inputMode="numeric"
+            />
+          </div>
+
+          {/* 4) Gün/Ay/Yıl (date) */}
+          <div>
+            <label className="text-xs text-white/60">Gün / Ay / Yıl</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
+            />
+            {/* 6) altına müşteri adı */}
+            <div className="mt-3">
+              <label className="text-xs text-white/60">Müşteri isim soyisim</label>
+              <input
+                value={customerFullName}
+                onChange={(e) => setCustomerFullName(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
+                placeholder="Örn: Burak Yılmaz"
+              />
+            </div>
+          </div>
+
+          {/* 5) Saat (time) */}
+          <div>
+            <label className="text-xs text-white/60">Saat</label>
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
+            />
+            {/* 7) altına müşteri telefon */}
+            <div className="mt-3">
+              <label className="text-xs text-white/60">Müşteri telefon numarası</label>
+              <input
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
+                placeholder="05xx..."
+                inputMode="tel"
+              />
+            </div>
+          </div>
+
+          {/* 8) 7 yaş altı çocuk sayısı (Happy Moons + Roof) */}
+          <div>
+            <label className="text-xs text-white/60">7 yaş altı çocuk sayısı</label>
+            <input
+              value={childU7Count}
+              onChange={(e) => setChildU7Count(e.target.value.replace(/\D/g, "").slice(0, 2))}
+              className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
+              placeholder="0"
+              inputMode="numeric"
+            />
+          </div>
+
+          {/* 9) Yetkili adı */}
+          <div>
+            <label className="text-xs text-white/60">Rezervasyonu alan yetkili (isim soyisim)</label>
+            <input
+              value={staffFullName}
+              onChange={(e) => setStaffFullName(e.target.value)}
+              className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
+              placeholder="Örn: Operasyon Personeli"
+            />
+          </div>
+        </div>
+
+        {/* Not */}
+        <div className="mt-4">
+          <label className="text-xs text-white/60">Müşteri notu</label>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            className="mt-2 w-full min-h-[120px] rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
+            placeholder="Kısa not..."
+          />
+        </div>
+
         <div className="mt-5 flex items-center justify-between gap-3">
           <div className="text-sm text-white/70">{msg}</div>
           <button
@@ -596,11 +630,10 @@ export default function ReservationsPage() {
                   <td className="px-5 py-3 whitespace-nowrap">{viewCustomerName(r)}</td>
                   <td className="px-5 py-3 text-white/70 whitespace-nowrap">{viewCustomerPhone(r)}</td>
                   <td className="px-5 py-3 text-white/70 whitespace-nowrap">
-                    {/* ✅ DÜZELTME: kids_u7 ve child_u7 kontrolü */}
-                    {r.restaurant === "Happy Moons" ? (r.kids_u7 || r.child_u7 || "-") : "-"}
+                    {/* kids_u7 / child_u7 her restoran için */}
+                    {r.kids_u7 || r.child_u7 || "-"}
                   </td>
                   <td className="px-5 py-3 text-white/70 whitespace-nowrap">
-                    {/* ✅ DÜZELTME: officer_name ve authorized_name kontrolü */}
                     {r.officer_name || r.authorized_name || "-"}
                   </td>
                   <td className="px-5 py-3 text-white/70 min-w-[260px]">{r.note || "-"}</td>

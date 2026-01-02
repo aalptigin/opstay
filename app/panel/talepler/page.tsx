@@ -33,6 +33,49 @@ function pillClass(s: ReqStatus) {
   return "border-white/10 bg-white/5 text-white/80";
 }
 
+function s(v: any) {
+  return String(v ?? "").trim();
+}
+
+function pick(obj: any, keys: string[]) {
+  for (const k of keys) {
+    const v = obj?.[k];
+    if (v === null || v === undefined) continue;
+    const str = String(v).trim();
+    if (str !== "") return v;
+  }
+  return "";
+}
+
+function normStatus(v: any): ReqStatus {
+  const x = s(v).toLowerCase();
+  if (x === "open" || x === "new" || x === "yeni") return "open";
+  if (x === "in_review" || x === "review" || x === "inreview" || x === "incelemede") return "in_review";
+  if (x === "resolved" || x === "closed" || x === "done" || x === "kapandi" || x === "kapandı") return "resolved";
+  if (x === "rejected" || x === "reject" || x === "reddedildi") return "rejected";
+  return "open";
+}
+
+function normalizeRow(r: any): ReqRow {
+  return {
+    request_id: s(pick(r, ["request_id", "id", "req_id", "requestId"])),
+    created_at: s(pick(r, ["created_at", "createdAt", "date", "timestamp", "time"])),
+
+    guest_full_name: s(
+      pick(r, ["guest_full_name", "subject_person_name", "full_name", "customer_full_name", "name_surname"])
+    ),
+    guest_phone: s(pick(r, ["guest_phone", "subject_phone", "phone", "customer_phone", "telefon"])),
+
+    summary: s(pick(r, ["summary", "reason", "note", "message", "description"])),
+
+    status: normStatus(pick(r, ["status", "state", "durum"])),
+
+    response_text: s(
+      pick(r, ["response_text", "manager_response", "manager_response_text", "response", "reply"])
+    ) || "",
+  };
+}
+
 export default function TaleplerPage() {
   const [me, setMe] = useState<Me | null>(null);
 
@@ -64,7 +107,11 @@ export default function TaleplerPage() {
       const res = await fetch("/api/requests", { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Talepler alınamadı");
-      setRows(data.rows || []);
+
+      const raw = Array.isArray(data.rows) ? data.rows : [];
+      const normalized = raw.map((x: any) => normalizeRow(x));
+
+      setRows(normalized);
     } catch (e: any) {
       setMsg(e?.message || "Hata");
     } finally {
@@ -78,8 +125,8 @@ export default function TaleplerPage() {
   }, []);
 
   const filtered = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    if (!s) return rows;
+    const s1 = q.trim().toLowerCase();
+    if (!s1) return rows;
     return rows.filter((r) => {
       const hay = [
         r.guest_full_name || "",
@@ -87,10 +134,11 @@ export default function TaleplerPage() {
         r.request_id || "",
         r.summary || "",
         r.status || "",
+        r.response_text || "",
       ]
         .join(" ")
         .toLowerCase();
-      return hay.includes(s);
+      return hay.includes(s1);
     });
   }, [q, rows]);
 
@@ -122,15 +170,31 @@ export default function TaleplerPage() {
 
   async function respond() {
     if (!selected) return;
+
+    const rid = s(selected.request_id);
+    if (!rid) {
+      setMsg("Talep ID bulunamadı.");
+      return;
+    }
+
+    const resp = s(responseText);
+    if (!resp) {
+      setMsg("Müdür yanıtı boş olamaz.");
+      return;
+    }
+
     setMsg(null);
     try {
       const res = await fetch("/api/requests/respond", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          request_id: selected.request_id,
-          response_text: responseText,
+          request_id: rid,
           status,
+
+          // ✅ hem eski hem yeni alan adları
+          response_text: resp,
+          manager_response: resp,
         }),
       });
       const data = await res.json();
@@ -186,6 +250,7 @@ export default function TaleplerPage() {
                 <button
                   key={r.request_id}
                   onClick={() => {
+                    if (!isManager) return;
                     setSelected(r);
                     setResponseText(r.response_text || "");
                     setStatus((r.status as ReqStatus) || "in_review");
@@ -195,6 +260,7 @@ export default function TaleplerPage() {
                   <div className="grid grid-cols-[1fr_140px_170px] gap-3 items-start">
                     <div>
                       <div className="text-white font-semibold">{r.guest_full_name || "İsim girilmemiş"}</div>
+                      <div className="text-white/50 text-sm mt-1">{r.guest_phone ? r.guest_phone : ""}</div>
                       <div className="text-white/55 text-sm mt-2 line-clamp-2">{r.summary || "Not eklenmemiş"}</div>
                       <div className="text-white/35 text-xs mt-3">ID: {r.request_id}</div>
                     </div>
@@ -308,25 +374,15 @@ export default function TaleplerPage() {
 
                   <div className="mt-5">
                     <label className="text-xs text-white/60">Durum</label>
-
-                    {/* ✅ SADECE BU KISIM DÜZELTİLDİ (bg + appearance + option class) */}
                     <select
                       value={status}
                       onChange={(e) => setStatus(e.target.value as ReqStatus)}
                       className="mt-2 w-full rounded-xl border border-white/10 bg-[#0b1220] px-4 py-3 text-sm text-white outline-none appearance-none"
                     >
-                      <option className="bg-[#0b1220] text-white" value="open">
-                        Yeni
-                      </option>
-                      <option className="bg-[#0b1220] text-white" value="in_review">
-                        İncelemede
-                      </option>
-                      <option className="bg-[#0b1220] text-white" value="resolved">
-                        Kapandı
-                      </option>
-                      <option className="bg-[#0b1220] text-white" value="rejected">
-                        Reddedildi
-                      </option>
+                      <option className="bg-[#0b1220] text-white" value="open">Yeni</option>
+                      <option className="bg-[#0b1220] text-white" value="in_review">İncelemede</option>
+                      <option className="bg-[#0b1220] text-white" value="resolved">Kapandı</option>
+                      <option className="bg-[#0b1220] text-white" value="rejected">Reddedildi</option>
                     </select>
                   </div>
 
