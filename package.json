@@ -21,6 +21,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "25.0.3",
+    "@types/pdfmake": "^0.2.12",
     "@types/react": "19.2.7",
     "autoprefixer": "^10.4.23",
     "postcss": "^8.5.6",
