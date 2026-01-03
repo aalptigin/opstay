@@ -122,15 +122,7 @@ function asRiskBucket(v: string) {
   return "";
 }
 
-function KPI({
-  label,
-  value,
-  sub,
-}: {
-  label: string;
-  value: string | number;
-  sub?: string;
-}) {
+function KPI({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5">
       <div className="text-xs text-white/55 tracking-[0.18em] font-semibold">{label}</div>
@@ -140,15 +132,7 @@ function KPI({
   );
 }
 
-function MiniAreaChart({
-  title,
-  labels,
-  values,
-}: {
-  title: string;
-  labels: string[];
-  values: number[];
-}) {
+function MiniAreaChart({ title, labels, values }: { title: string; labels: string[]; values: number[] }) {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
   const w = 980;
@@ -194,32 +178,14 @@ function MiniAreaChart({
     <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden">
       <div className="px-5 pt-5 pb-3 flex items-center justify-between gap-3">
         <div className="text-sm font-semibold text-white/90">{title}</div>
-        {/* dd/MM/yyyy kaldırıldı */}
       </div>
 
       <div className="px-5 pb-5">
-        <svg
-          viewBox={`0 0 ${w} ${h}`}
-          className="w-full h-[240px] select-none"
-          onMouseLeave={() => setHoverIdx(null)}
-        >
+        <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-[240px] select-none" onMouseLeave={() => setHoverIdx(null)}>
           {yTicks.map((t, i) => (
             <g key={i}>
-              <line
-                x1={padX}
-                y1={t.y}
-                x2={w - padX}
-                y2={t.y}
-                stroke="rgba(255,255,255,0.08)"
-                strokeWidth="1"
-              />
-              <text
-                x={w - padX}
-                y={t.y - 6}
-                textAnchor="end"
-                fontSize="12"
-                fill="rgba(255,255,255,0.35)"
-              >
+              <line x1={padX} y1={t.y} x2={w - padX} y2={t.y} stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+              <text x={w - padX} y={t.y - 6} textAnchor="end" fontSize="12" fill="rgba(255,255,255,0.35)">
                 {t.v}
               </text>
             </g>
@@ -268,14 +234,7 @@ function MiniAreaChart({
           {labels.map((lb, i) => {
             const x = padX + (i * (w - padX * 2)) / (labels.length - 1 || 1);
             return (
-              <text
-                key={i}
-                x={x}
-                y={h - 6}
-                textAnchor="middle"
-                fontSize="12"
-                fill="rgba(255,255,255,0.45)"
-              >
+              <text key={i} x={x} y={h - 6} textAnchor="middle" fontSize="12" fill="rgba(255,255,255,0.45)">
                 {lb}
               </text>
             );
@@ -295,7 +254,11 @@ function escapeHtml(x: any) {
     .replaceAll("'", "&#039;");
 }
 
-function openPdfPrintWindow(args: {
+/**
+ * Pop-up/print YOK.
+ * Direkt indirilebilir PDF üretir (Chrome pop-up engeline takılmaz).
+ */
+async function downloadPdfDirect(args: {
   restaurant: string;
   daysCount: 7 | 14;
   totals: { totalRes: number; totalBl: number; high: number; medium: number; low: number };
@@ -308,212 +271,145 @@ function openPdfPrintWindow(args: {
     low: number;
   }>;
 }) {
+  const pdfMakeMod: any = await import("pdfmake/build/pdfmake");
+  const pdfFontsMod: any = await import("pdfmake/build/vfs_fonts");
+
+  const pdfMake = pdfMakeMod.default || pdfMakeMod;
+  pdfMake.vfs = pdfFontsMod.pdfMake?.vfs;
+
   const { restaurant, daysCount, totals, daily } = args;
-  const now = new Date();
-  const ts = now.toLocaleString("tr-TR");
+  const ts = new Date().toLocaleString("tr-TR");
 
-  const rowsHtml = daily
-    .map((r) => {
-      return `<tr>
-        <td>${escapeHtml(r.date)}</td>
-        <td>${escapeHtml(trDDMM(r.date))}</td>
-        <td style="text-align:right">${r.reservations}</td>
-        <td style="text-align:right">${r.blacklist}</td>
-        <td style="text-align:right">${r.high}</td>
-        <td style="text-align:right">${r.medium}</td>
-        <td style="text-align:right">${r.low}</td>
-      </tr>`;
-    })
-    .join("");
+  const body = [
+    [
+      { text: "Tarih (YMD)", style: "th" },
+      { text: "Gün/Ay", style: "th" },
+      { text: "Rez", style: "th", alignment: "right" },
+      { text: "Kara Liste", style: "th", alignment: "right" },
+      { text: "Risk Y", style: "th", alignment: "right" },
+      { text: "Risk O", style: "th", alignment: "right" },
+      { text: "Risk D", style: "th", alignment: "right" },
+    ],
+    ...daily.map((r) => [
+      escapeHtml(r.date),
+      escapeHtml(trDDMM(r.date)),
+      { text: String(r.reservations), alignment: "right" },
+      { text: String(r.blacklist), alignment: "right" },
+      { text: String(r.high), alignment: "right" },
+      { text: String(r.medium), alignment: "right" },
+      { text: String(r.low), alignment: "right" },
+    ]),
+  ];
 
-  const html = `<!doctype html>
-<html>
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>OpsStay • ${escapeHtml(restaurant)} • ${daysCount} Gün</title>
-<style>
-  @page { margin: 14mm; }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
-    color: #0b1220;
-    background: #ffffff;
-  }
+  const docDefinition: any = {
+    pageSize: "A4",
+    pageMargins: [40, 52, 40, 40],
 
-  .wrap { position: relative; }
-  .wm {
-    position: fixed;
-    right: 14mm;
-    bottom: 12mm;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    color: rgba(11, 18, 32, 0.16);
-    font-size: 22px;
-    user-select: none;
-    pointer-events: none;
-    transform: rotate(-0.5deg);
-  }
+    // “Silinemez” garanti edilemez; ama PDF üstünde watermark üretir ve kullanıcı indirdiğinde görünür kalır.
+    watermark: { text: "OpsStay", color: "#0b1220", opacity: 0.08, bold: true },
 
-  .header {
-    padding: 10mm 0 6mm 0;
-    border-bottom: 1px solid rgba(0,0,0,0.10);
-  }
-  .title {
-    font-size: 20px;
-    font-weight: 800;
-    margin: 0;
-  }
-  .sub {
-    margin-top: 6px;
-    font-size: 12px;
-    color: rgba(0,0,0,0.60);
-  }
-  .kpis {
-    margin-top: 10mm;
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8mm;
-  }
-  .kpi {
-    border: 1px solid rgba(0,0,0,0.12);
-    border-radius: 14px;
-    padding: 10mm 6mm;
-  }
-  .kpi .l {
-    font-size: 10px;
-    letter-spacing: 0.18em;
-    color: rgba(0,0,0,0.55);
-    font-weight: 700;
-  }
-  .kpi .v {
-    margin-top: 6px;
-    font-size: 22px;
-    font-weight: 900;
-  }
-  .kpi .s {
-    margin-top: 4px;
-    font-size: 11px;
-    color: rgba(0,0,0,0.60);
-  }
+    content: [
+      { text: `İstatistikler • ${restaurant}`, style: "h1" },
+      { text: `${daysCount} günlük özet (rezervasyon ve kara liste) • Oluşturulma: ${ts}`, style: "sub" },
 
-  .section {
-    margin-top: 10mm;
-  }
-  .section h2 {
-    margin: 0 0 4mm 0;
-    font-size: 14px;
-    font-weight: 800;
-  }
+      { text: " ", margin: [0, 8, 0, 0] },
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 11px;
-  }
-  th, td {
-    padding: 6px 6px;
-    border-bottom: 1px solid rgba(0,0,0,0.10);
-  }
-  th {
-    text-align: left;
-    font-size: 10px;
-    letter-spacing: 0.14em;
-    color: rgba(0,0,0,0.55);
-  }
+      {
+        columns: [
+          {
+            width: "*",
+            stack: [
+              { text: `TOPLAM REZERVASYON (${daysCount}G)`, style: "kpiLabel" },
+              { text: String(totals.totalRes), style: "kpiValue" },
+              { text: "Seçili restoran", style: "kpiSub" },
+            ],
+            style: "kpiBox",
+          },
+          {
+            width: "*",
+            stack: [
+              { text: `TOPLAM KARA LİSTE (${daysCount}G)`, style: "kpiLabel" },
+              { text: String(totals.totalBl), style: "kpiValue" },
+              { text: "Seçili restoran", style: "kpiSub" },
+            ],
+            style: "kpiBox",
+          },
+        ],
+        columnGap: 12,
+      },
 
-  .footer {
-    margin-top: 10mm;
-    font-size: 10px;
-    color: rgba(0,0,0,0.55);
-    border-top: 1px solid rgba(0,0,0,0.10);
-    padding-top: 4mm;
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-  }
+      { text: " ", margin: [0, 8, 0, 0] },
 
-  @media print {
-    .wm { color: rgba(11, 18, 32, 0.14); }
-  }
-</style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="wm">OpsStay</div>
+      {
+        columns: [
+          {
+            width: "*",
+            stack: [
+              { text: "RİSK (DAĞILIM)", style: "kpiLabel" },
+              { text: `${totals.high}/${totals.medium}/${totals.low}`, style: "kpiValue" },
+              { text: "Yüksek / Orta / Düşük", style: "kpiSub" },
+            ],
+            style: "kpiBox",
+          },
+          {
+            width: "*",
+            stack: [
+              { text: "KAPSAM", style: "kpiLabel" },
+              { text: String(daysCount), style: "kpiValue" },
+              { text: "Günlük trend", style: "kpiSub" },
+            ],
+            style: "kpiBox",
+          },
+        ],
+        columnGap: 12,
+      },
 
-    <div class="header">
-      <h1 class="title">İstatistikler • ${escapeHtml(restaurant)}</h1>
-      <div class="sub">${daysCount} günlük özet (rezervasyon ve kara liste) • Oluşturulma: ${escapeHtml(ts)}</div>
-    </div>
+      { text: " ", margin: [0, 10, 0, 0] },
+      { text: "Günlük Döküm", style: "h2" },
 
-    <div class="kpis">
-      <div class="kpi">
-        <div class="l">TOPLAM REZERVASYON (${daysCount}G)</div>
-        <div class="v">${totals.totalRes}</div>
-        <div class="s">Seçili restoran</div>
-      </div>
-      <div class="kpi">
-        <div class="l">TOPLAM KARA LİSTE (${daysCount}G)</div>
-        <div class="v">${totals.totalBl}</div>
-        <div class="s">Seçili restoran</div>
-      </div>
-      <div class="kpi">
-        <div class="l">RİSK (DAĞILIM)</div>
-        <div class="v">${totals.high}/${totals.medium}/${totals.low}</div>
-        <div class="s">Yüksek / Orta / Düşük</div>
-      </div>
-      <div class="kpi">
-        <div class="l">KAPSAM</div>
-        <div class="v">${daysCount}</div>
-        <div class="s">Günlük trend</div>
-      </div>
-    </div>
+      {
+        table: {
+          headerRows: 1,
+          widths: ["*", 44, 34, 52, 40, 40, 40],
+          body,
+        },
+        layout: {
+          fillColor: (rowIndex: number) => (rowIndex === 0 ? "#f3f5f7" : null),
+          hLineColor: () => "#e6e8eb",
+          vLineColor: () => "#e6e8eb",
+        },
+      },
 
-    <div class="section">
-      <h2>Günlük Döküm</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Tarih (YMD)</th>
-            <th>Gün/Ay</th>
-            <th style="text-align:right">Rez</th>
-            <th style="text-align:right">Kara Liste</th>
-            <th style="text-align:right">Risk Y</th>
-            <th style="text-align:right">Risk O</th>
-            <th style="text-align:right">Risk D</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rowsHtml}
-        </tbody>
-      </table>
-    </div>
+      { text: " ", margin: [0, 10, 0, 0] },
+      {
+        columns: [
+          { text: "OpsStay • Panel Çıktısı", style: "footer" },
+          { text: `${restaurant} • ${daysCount} Gün`, style: "footer", alignment: "right" },
+        ],
+      },
+    ],
 
-    <div class="footer">
-      <div>OpsStay • Panel Çıktısı</div>
-      <div>${escapeHtml(restaurant)} • ${daysCount} Gün</div>
-    </div>
-  </div>
+    styles: {
+      h1: { fontSize: 18, bold: true, color: "#0b1220" },
+      h2: { fontSize: 12, bold: true, margin: [0, 0, 0, 6], color: "#0b1220" },
+      sub: { fontSize: 10, color: "#4b5563", margin: [0, 6, 0, 0] },
 
-  <script>
-    // PDF olarak indir => yazdır penceresi (Kullanıcı: Yazdır > PDF olarak kaydet)
-    window.addEventListener('load', () => {
-      setTimeout(() => window.print(), 300);
-    });
-  </script>
-</body>
-</html>`;
+      kpiBox: { margin: [0, 0, 0, 0], fillColor: "#ffffff", color: "#0b1220" },
+      kpiLabel: { fontSize: 8, bold: true, color: "#6b7280", letterSpacing: 0.6 },
+      kpiValue: { fontSize: 18, bold: true, margin: [0, 4, 0, 0] },
+      kpiSub: { fontSize: 9, color: "#6b7280", margin: [0, 3, 0, 0] },
 
-  const win = window.open("", "_blank", "noopener,noreferrer,width=1100,height=900");
-  if (!win) {
-    alert("Popup engellendi. Tarayıcıda pop-up izni verip tekrar deneyin.");
-    return;
-  }
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
+      th: { fontSize: 8, bold: true, color: "#374151" },
+      footer: { fontSize: 8, color: "#6b7280" },
+    },
+
+    defaultStyle: { fontSize: 10 },
+  };
+
+  const safeRestaurant = String(restaurant).toLowerCase().replace(/\s+/g, "-");
+  const filename = `opsstay-istatistik-${safeRestaurant}-${daysCount}g.pdf`;
+
+  pdfMake.createPdf(docDefinition).download(filename);
 }
 
 export default function IstatistiklerHappyMoonsPage() {
@@ -530,10 +426,7 @@ export default function IstatistiklerHappyMoonsPage() {
     setLoading(true);
     setErr("");
     try {
-      const [resRows, recRows] = await Promise.all([
-        fetchRows("/api/reservations"),
-        fetchRows("/api/records"),
-      ]);
+      const [resRows, recRows] = await Promise.all([fetchRows("/api/reservations"), fetchRows("/api/records")]);
       setReservations(resRows);
       setRecords(recRows);
     } catch (e: any) {
@@ -605,7 +498,7 @@ export default function IstatistiklerHappyMoonsPage() {
   }, [daily]);
 
   const onDownloadPdf = useCallback(() => {
-    openPdfPrintWindow({ restaurant, daysCount, totals, daily });
+    downloadPdfDirect({ restaurant, daysCount, totals, daily });
   }, [restaurant, daysCount, totals, daily]);
 
   return (
@@ -628,9 +521,7 @@ export default function IstatistiklerHappyMoonsPage() {
             >
               İstatistikler · {restaurant}
             </motion.h1>
-            <p className="mt-2 text-sm text-white/60">
-              {daysCount} günlük özet (rezervasyon ve kara liste).
-            </p>
+            <p className="mt-2 text-sm text-white/60">{daysCount} günlük özet (rezervasyon ve kara liste).</p>
             {err ? <div className="mt-2 text-xs text-red-300/90">{err}</div> : null}
           </div>
 
@@ -660,7 +551,7 @@ export default function IstatistiklerHappyMoonsPage() {
             <button
               onClick={onDownloadPdf}
               className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm border-white/10 bg-white/5 text-white/90 hover:bg-white/10 transition"
-              title="Yazdır penceresi açılır: PDF olarak kaydet"
+              title="PDF doğrudan indirilecektir (pop-up yok)."
             >
               PDF olarak indir
             </button>
@@ -688,11 +579,7 @@ export default function IstatistiklerHappyMoonsPage() {
         >
           <KPI label={`TOPLAM REZERVASYON (${daysCount}G)`} value={totals.totalRes} sub="Seçili restoran" />
           <KPI label={`TOPLAM KARA LİSTE (${daysCount}G)`} value={totals.totalBl} sub="Seçili restoran" />
-          <KPI
-            label="RİSK (DAĞILIM)"
-            value={`${totals.high}/${totals.medium}/${totals.low}`}
-            sub="Yüksek / Orta / Düşük"
-          />
+          <KPI label="RİSK (DAĞILIM)" value={`${totals.high}/${totals.medium}/${totals.low}`} sub="Yüksek / Orta / Düşük" />
           <KPI label="KAPSAM" value={daysCount} sub="Günlük trend" />
         </motion.div>
 
