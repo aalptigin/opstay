@@ -25,46 +25,121 @@ function pick(obj: any, keys: string[]) {
 }
 
 function normRestaurant(v: any) {
-  const r = s(v).toLowerCase();
+  const raw = s(v);
+  const r = raw.toLowerCase().replace(/\s+/g, " ").trim();
   if (!r) return "";
-  if (r === "happy moons" || r === "happy_moons" || r === "happy-moons")
+
+  if (
+    r === "happy moons" ||
+    r === "happy_moons" ||
+    r === "happy-moons" ||
+    r === "happymoons" ||
+    r === "happy moon"
+  )
     return "Happy Moons";
-  if (r === "roof") return "Roof";
-  return s(v);
+
+  if (r === "roof" || r === "roof restaurant") return "Roof";
+
+  return raw;
+}
+
+function normalizeDateYMD(v: any) {
+  const raw = s(v);
+  if (!raw) return "";
+
+  // already YMD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+
+  // dd/MM/yyyy
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) {
+    const [dd, mm, yyyy] = raw.split("/");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  // dd.MM.yyyy
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(raw)) {
+    const [dd, mm, yyyy] = raw.split(".");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  // ISO datetime
+  if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) return raw.slice(0, 10);
+
+  const d = new Date(raw);
+  if (!Number.isNaN(d.getTime())) {
+    const yyyy = String(d.getFullYear());
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  return raw;
+}
+
+function normalizeTimeHHmm(v: any) {
+  const raw = s(v);
+  if (!raw) return "";
+  if (/^\d{2}:\d{2}$/.test(raw)) return raw;
+
+  const m = raw.match(/^(\d{1,2}):(\d{2})/);
+  if (m) return `${String(parseInt(m[1], 10)).padStart(2, "0")}:${m[2]}`;
+
+  // ISO datetime
+  if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) return raw.slice(11, 16);
+
+  const d = new Date(raw);
+  if (!Number.isNaN(d.getTime())) {
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+  }
+
+  return raw;
+}
+
+function formatTRDateFromYMD(ymd: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd || "-";
+  const [yyyy, mm, dd] = ymd.split("-");
+  return `${dd}.${mm}.${yyyy}`;
+}
+
+function todayYMD() {
+  const now = new Date();
+  const yyyy = String(now.getFullYear());
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function rowId(row: RowAny) {
+  return s(pick(row, ["record_id", "id", "row_id", "uuid"]));
 }
 
 function rowRestaurant(row: RowAny) {
   return normRestaurant(pick(row, ["restaurant", "restaurant_name"]));
 }
 
-function rowRezNo(row: RowAny) {
-  return s(pick(row, ["reservation_no", "rez_no", "reservationNumber", "reservation_id"]));
+function rowDateYMD(row: RowAny) {
+  const d = normalizeDateYMD(pick(row, ["date", "created_date", "gun_ay_yil", "dayMonthYear"]));
+  // legacy datetime
+  const dt = s(pick(row, ["datetime", "created_at", "createdAt"]));
+  const d2 = dt ? normalizeDateYMD(dt.slice(0, 10)) : "";
+  return d || d2;
 }
 
-function rowMasa(row: RowAny) {
-  return s(pick(row, ["table_no", "masa", "masa_no", "tableNumber"]));
-}
-
-function rowDate(row: RowAny) {
-  return s(pick(row, ["date", "gun_ay_yil", "dayMonthYear"]));
-}
-
-function rowTime(row: RowAny) {
-  return s(pick(row, ["time", "saat"]));
+function rowTimeHHmm(row: RowAny) {
+  const t = normalizeTimeHHmm(pick(row, ["time", "created_time", "saat"]));
+  const dt = s(pick(row, ["datetime", "created_at", "createdAt"]));
+  const t2 = dt ? normalizeTimeHHmm(dt.slice(11, 16)) : "";
+  return t || t2;
 }
 
 function rowCustomer(row: RowAny) {
-  return s(
-    pick(row, ["customer_full_name", "full_name", "guest_full_name", "name_surname"])
-  );
+  return s(pick(row, ["full_name", "customer_full_name", "subject_person_name", "guest_full_name", "name_surname"]));
 }
 
 function rowPhone(row: RowAny) {
-  return s(pick(row, ["customer_phone", "phone", "guest_phone", "telefon"]));
-}
-
-function rowKids(row: RowAny) {
-  return s(pick(row, ["kids_u7", "child_u7", "children_u7", "cocuk_7_alti"]));
+  return s(pick(row, ["phone", "customer_phone", "subject_phone", "guest_phone", "telefon"]));
 }
 
 function rowOfficer(row: RowAny) {
@@ -72,20 +147,49 @@ function rowOfficer(row: RowAny) {
     pick(row, [
       "officer_name",
       "authorized_name",
-      "added_by_name",
       "created_by_name",
-      "authorized_na",
-      "authorized_name ",
+      "added_by_name",
+      "actor_name",
+      "staff_full_name",
     ])
   );
 }
 
 function rowNote(row: RowAny) {
-  return s(pick(row, ["note", "customer_note", "not", "aciklama"]));
+  return s(pick(row, ["note", "blacklist_note", "customer_note", "summary", "reason", "not", "aciklama"]));
+}
+
+function rowRisk(row: RowAny) {
+  const r = s(pick(row, ["risk_level", "risk", "severity", "level"]));
+  return r;
 }
 
 function rowStatus(row: RowAny) {
-  return s(pick(row, ["status", "state"])).toLowerCase();
+  return s(pick(row, ["status", "state", "type", "mode"])).toLowerCase();
+}
+
+function isBlacklistRow(row: RowAny) {
+  // olabildiğince tolerant:
+  const st = rowStatus(row);
+
+  if (st.includes("black")) return true; // blacklist, blacklisted
+  if (st.includes("kara")) return true; // kara_liste vb.
+  if (st === "bl" || st === "b") return true;
+
+  const flag =
+    (row as any).is_blacklist ??
+    (row as any).isBlacklisted ??
+    (row as any).blacklist ??
+    (row as any).blacklisted ??
+    null;
+
+  if (flag === true) return true;
+
+  // bazı backend'lerde "list_type": "blacklist"
+  const lt = s(pick(row, ["list_type", "listType"])).toLowerCase();
+  if (lt.includes("black")) return true;
+
+  return false;
 }
 
 async function fetchRows(): Promise<RowAny[]> {
@@ -98,13 +202,29 @@ async function fetchRows(): Promise<RowAny[]> {
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
+function StatCard({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5">
+      <div className="text-xs text-white/55 tracking-[0.18em] font-semibold">{label}</div>
+      <div className="mt-2 text-3xl font-extrabold text-white">{value}</div>
+      {sub ? <div className="mt-1 text-sm text-white/60">{sub}</div> : null}
+    </div>
+  );
+}
+
 export default function KayitlarPage() {
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<RowAny[]>([]);
   const [q, setQ] = useState("");
-  const [restaurantFilter, setRestaurantFilter] = useState<
-    "all" | "happy-moons" | "roof"
-  >("all");
+  const [restaurantFilter, setRestaurantFilter] = useState<"all" | "happy-moons" | "roof">("all");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -121,7 +241,13 @@ export default function KayitlarPage() {
   }, [load]);
 
   const blacklistRows = useMemo(() => {
-    return (rows || []).filter((r) => rowStatus(r) === "blacklist");
+    const list = (rows || []).filter((r) => isBlacklistRow(r));
+    // en yeni üstte (date+time desc)
+    return list.slice().sort((a, b) => {
+      const ka = `${rowDateYMD(a)} ${rowTimeHHmm(a)}`;
+      const kb = `${rowDateYMD(b)} ${rowTimeHHmm(b)}`;
+      return kb.localeCompare(ka);
+    });
   }, [rows]);
 
   const filtered = useMemo(() => {
@@ -131,26 +257,24 @@ export default function KayitlarPage() {
       const rest = rowRestaurant(r);
       const restLower = rest.toLowerCase();
 
-      if (restaurantFilter === "happy-moons" && restLower !== "happy moons")
-        return false;
+      if (restaurantFilter === "happy-moons" && restLower !== "happy moons") return false;
       if (restaurantFilter === "roof" && restLower !== "roof") return false;
 
       if (!query) return true;
 
       const hay = [
         rest,
-        rowRezNo(r),
-        rowMasa(r),
-        rowDate(r),
-        rowTime(r),
+        rowDateYMD(r),
+        rowTimeHHmm(r),
         rowCustomer(r),
         rowPhone(r),
-        rowKids(r),
         rowOfficer(r),
+        rowRisk(r),
         rowNote(r),
+        rowId(r),
       ]
         .map((x) => s(x).toLowerCase())
-        .join(" ");
+        .join(" | ");
 
       return hay.includes(query);
     });
@@ -159,21 +283,37 @@ export default function KayitlarPage() {
   const total = blacklistRows.length;
   const shown = filtered.length;
 
+  const kpis = useMemo(() => {
+    const today = todayYMD();
+    const todayCount = blacklistRows.filter((r) => rowDateYMD(r) === today).length;
+
+    const riskHigh = blacklistRows.filter((r) => {
+      const x = s(rowRisk(r)).toLowerCase();
+      if (!x) return false;
+      if (x.includes("high") || x.includes("yüksek")) return true;
+      if (x === "3" || x === "4" || x === "5") return true;
+      return false;
+    }).length;
+
+    return { todayCount, riskHigh };
+  }, [blacklistRows]);
+
   return (
     <div className="w-full">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
+          <div className="text-white/60 text-xs tracking-[0.35em] font-semibold">KAYITLAR</div>
           <motion.h1
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, ease }}
-            className="text-3xl font-semibold tracking-tight text-white"
+            className="mt-2 text-2xl md:text-3xl font-extrabold text-white"
           >
-            Kayıtlar
+            Kara Liste Kayıtları
           </motion.h1>
-          <p className="mt-1 text-sm text-white/60">
-            Kara Liste / Kayıt verilerini burada görürsün.
+          <p className="mt-2 text-sm text-white/60">
+            Kara listeye eklenen misafirleri burada filtreleyip hızlıca inceleyebilirsiniz.
           </p>
         </div>
 
@@ -181,7 +321,7 @@ export default function KayitlarPage() {
           <Link
             href="/panel/kayit/ekle"
             className={cx(
-              "inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm",
+              "inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm",
               "border-white/10 bg-white/5 text-white/90 hover:bg-white/10 transition"
             )}
           >
@@ -191,14 +331,28 @@ export default function KayitlarPage() {
           <button
             onClick={load}
             className={cx(
-              "inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm",
-              "border-white/10 bg-white/5 text-white/90 hover:bg-white/10 transition"
+              "inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm",
+              "border-white/10 bg-white/5 text-white/90 hover:bg-white/10 transition",
+              loading ? "opacity-60 cursor-not-allowed" : ""
             )}
+            disabled={loading}
           >
-            Yenile
+            {loading ? "Yenileniyor..." : "Yenile"}
           </button>
         </div>
       </div>
+
+      {/* KPI CARDS */}
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45 }}
+        className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3"
+      >
+        <StatCard label="TOPLAM" value={total} sub="Kara liste kaydı" />
+        <StatCard label="BUGÜN" value={kpis.todayCount} sub={`Tarih: ${formatTRDateFromYMD(todayYMD())}`} />
+        <StatCard label="RİSK" value={kpis.riskHigh} sub="Yüksek risk (yaklaşık)" />
+      </motion.div>
 
       {/* Filters */}
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -208,12 +362,13 @@ export default function KayitlarPage() {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="İsim, telefon, rez no, tarih..."
+            placeholder="İsim, telefon, not, risk, tarih..."
             className={cx(
               "w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm",
               "text-white placeholder:text-white/30 outline-none focus:border-white/20"
             )}
           />
+          <div className="mt-2 text-xs text-white/45">İpucu: Telefon veya isim parçalarıyla arayabilirsiniz.</div>
         </div>
 
         {/* Restoran */}
@@ -227,10 +382,11 @@ export default function KayitlarPage() {
               "text-white outline-none focus:border-white/20"
             )}
           >
-            <option value="all">Hepsi</option>
+            <option value="all">Tümü</option>
             <option value="happy-moons">Happy Moons</option>
             <option value="roof">Roof</option>
           </select>
+          <div className="mt-2 text-xs text-white/45">Not: “Tümü” tüm restoranları gösterir.</div>
         </div>
 
         {/* Özet */}
@@ -240,9 +396,7 @@ export default function KayitlarPage() {
             Toplam: <span className="font-semibold">{total}</span> / Görünen:{" "}
             <span className="font-semibold">{shown}</span>
           </div>
-          {loading ? (
-            <div className="mt-2 text-xs text-white/40">Yükleniyor…</div>
-          ) : null}
+          {loading ? <div className="mt-2 text-xs text-white/40">Yükleniyor…</div> : null}
         </div>
       </div>
 
@@ -253,76 +407,72 @@ export default function KayitlarPage() {
             <thead>
               <tr className="text-white/60">
                 <th className="px-4 py-3 text-left font-medium">Restoran</th>
-                <th className="px-4 py-3 text-left font-medium">Rez. No</th>
-                <th className="px-4 py-3 text-left font-medium">Masa</th>
                 <th className="px-4 py-3 text-left font-medium">Gün/Ay/Yıl</th>
                 <th className="px-4 py-3 text-left font-medium">Saat</th>
-                <th className="px-4 py-3 text-left font-medium">Müşteri</th>
+                <th className="px-4 py-3 text-left font-medium">Misafir</th>
                 <th className="px-4 py-3 text-left font-medium">Telefon</th>
-                <th className="px-4 py-3 text-left font-medium">Çocuk (7-)</th>
+                <th className="px-4 py-3 text-left font-medium">Risk</th>
                 <th className="px-4 py-3 text-left font-medium">Yetkili</th>
                 <th className="px-4 py-3 text-left font-medium">Not</th>
                 <th className="px-4 py-3 text-left font-medium">Durum</th>
-                {/* Düzen bozulmasın diye sütun duruyor ama buton yok */}
-                <th className="px-4 py-3 text-left font-medium">İşlem</th>
               </tr>
             </thead>
 
             <tbody>
-              {filtered.map((r, idx) => {
-                const rest = rowRestaurant(r) || "-";
-                const rez = rowRezNo(r) || "-";
-                const masa = rowMasa(r) || "-";
-                const date = rowDate(r) || "-";
-                const time = rowTime(r) || "-";
-                const cust = rowCustomer(r) || "-";
-                const phone = rowPhone(r) || "-";
-                const kids = rowKids(r) || "-";
-                const officer = rowOfficer(r) || "-";
-                const note = rowNote(r) || "-";
-
-                return (
-                  <tr
-                    key={r?.id ?? r?.row_id ?? `${idx}`}
-                    className={cx(
-                      "border-t border-white/10",
-                      "hover:bg-white/[0.04] transition"
-                    )}
-                  >
-                    <td className="px-4 py-3 text-white/90 font-medium">
-                      {rest}
-                    </td>
-                    <td className="px-4 py-3 text-white/80">{rez}</td>
-                    <td className="px-4 py-3 text-white/80">{masa}</td>
-                    <td className="px-4 py-3 text-white/80">{date}</td>
-                    <td className="px-4 py-3 text-white/80">{time}</td>
-                    <td className="px-4 py-3 text-white/90">{cust}</td>
-                    <td className="px-4 py-3 text-white/80">{phone}</td>
-                    <td className="px-4 py-3 text-white/80">{kids}</td>
-                    <td className="px-4 py-3 text-white/80">{officer}</td>
-                    <td className="px-4 py-3 text-white/80">{note}</td>
-
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center rounded-full border border-white/10 bg-black/30 px-3 py-1 text-xs text-white/80">
-                        blacklist
-                      </span>
-                    </td>
-
-                    <td className="px-4 py-3 text-white/30">—</td>
+              {loading ? (
+                Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={i} className="border-t border-white/10 animate-pulse">
+                    {Array.from({ length: 9 }).map((__, j) => (
+                      <td key={j} className="px-4 py-3">
+                        <div className="h-3 rounded bg-white/10" />
+                      </td>
+                    ))}
                   </tr>
-                );
-              })}
+                ))
+              ) : (
+                <>
+                  {filtered.map((r, idx) => {
+                    const id = rowId(r) || `${idx}`;
 
-              {!loading && filtered.length === 0 ? (
-                <tr className="border-t border-white/10">
-                  <td
-                    colSpan={12}
-                    className="px-4 py-10 text-center text-white/50"
-                  >
-                    Kayıt bulunamadı.
-                  </td>
-                </tr>
-              ) : null}
+                    const rest = rowRestaurant(r) || "-";
+                    const d = rowDateYMD(r);
+                    const t = rowTimeHHmm(r);
+
+                    const cust = rowCustomer(r) || "-";
+                    const phone = rowPhone(r) || "-";
+                    const officer = rowOfficer(r) || "-";
+                    const note = rowNote(r) || "-";
+                    const risk = rowRisk(r) || "-";
+
+                    return (
+                      <tr key={id} className={cx("border-t border-white/10", "hover:bg-white/[0.04] transition")}>
+                        <td className="px-4 py-3 text-white/90 font-medium whitespace-nowrap">{rest}</td>
+                        <td className="px-4 py-3 text-white/80 whitespace-nowrap">{d ? formatTRDateFromYMD(d) : "-"}</td>
+                        <td className="px-4 py-3 text-white/80 whitespace-nowrap">{t || "-"}</td>
+                        <td className="px-4 py-3 text-white/90">{cust}</td>
+                        <td className="px-4 py-3 text-white/80 whitespace-nowrap">{phone}</td>
+                        <td className="px-4 py-3 text-white/80 whitespace-nowrap">{risk}</td>
+                        <td className="px-4 py-3 text-white/80">{officer}</td>
+                        <td className="px-4 py-3 text-white/80 min-w-[320px]">{note}</td>
+
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center rounded-full border border-white/10 bg-black/30 px-3 py-1 text-xs text-white/80">
+                            blacklist
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {filtered.length === 0 ? (
+                    <tr className="border-t border-white/10">
+                      <td colSpan={9} className="px-4 py-10 text-center text-white/50">
+                        Kayıt bulunamadı.
+                      </td>
+                    </tr>
+                  ) : null}
+                </>
+              )}
             </tbody>
           </table>
         </div>

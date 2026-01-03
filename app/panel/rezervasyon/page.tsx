@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 
 type ReservationRow = {
@@ -11,13 +11,13 @@ type ReservationRow = {
   reservation_no?: string;
   table_no?: string;
 
-  date?: string; // YYYY-MM-DD
+  date?: string; // YYYY-MM-DD veya dd/MM/yyyy (API normalize edebilir)
   time?: string; // HH:mm
 
   customer_full_name?: string;
   customer_phone?: string;
 
-  // ✅ DÜZELTME: Alan adları kod.gs ile uyumlu hale getirildi
+  // ✅ Alan adları (GS/UI uyumluluk)
   kids_u7?: string;
   child_u7?: string;
   officer_name?: string;
@@ -43,10 +43,21 @@ type BlacklistCheckResponse = {
   message?: string;
 };
 
+function cx(...a: Array<string | false | undefined | null>) {
+  return a.filter(Boolean).join(" ");
+}
+
+function s(v: any) {
+  return String(v ?? "").trim();
+}
+
 export default function ReservationsPage() {
   const [rows, setRows] = useState<ReservationRow[]>([]);
-  const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+
+  // Yükleme state'lerini ayır (liste / kayıt)
+  const [listLoading, setListLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // Misafir Sorgulama (Ad Soyad + Telefon)
   const [lookupName, setLookupName] = useState("");
@@ -61,7 +72,10 @@ export default function ReservationsPage() {
   const [tableFilterPhone, setTableFilterPhone] = useState("");
 
   function normPhone(v: string) {
-    return String(v ?? "").replace(/[^\d+]/g, "").trim();
+    // +90 vb. ihtimalini bozmadan, tamamen sayıya çek
+    const cleaned = String(v ?? "").replace(/[^\d+]/g, "").trim();
+    // Tipik TR girişleri için: +90 varsa +90xxxxx..., 0 ile başlıyorsa 0xxxxxxxxxx
+    return cleaned;
   }
 
   function todayISO() {
@@ -96,9 +110,62 @@ export default function ReservationsPage() {
     return raw;
   }
 
+  function formatTRDate(v: any) {
+    const raw = s(v);
+    if (!raw) return "-";
+    // dd/MM/yyyy ise aynen
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) return raw;
+    // 29.12.2025 -> 29/12/2025
+    if (/^\d{2}\.\d{2}\.\d{4}$/.test(raw)) return raw.replace(/\./g, "/");
+    // ISO
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      const d = new Date(`${raw}T00:00:00`);
+      if (!Number.isNaN(d.getTime())) {
+        const out = new Intl.DateTimeFormat("tr-TR", {
+          timeZone: "Europe/Istanbul",
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }).format(d);
+        return out.replace(/\./g, "/");
+      }
+    }
+    // datetime
+    const d = new Date(raw);
+    if (!Number.isNaN(d.getTime())) {
+      const out = new Intl.DateTimeFormat("tr-TR", {
+        timeZone: "Europe/Istanbul",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(d);
+      return out.replace(/\./g, "/");
+    }
+    return raw;
+  }
+
+  function formatTRTime(v: any) {
+    const raw = s(v);
+    if (!raw) return "-";
+    if (/^\d{2}:\d{2}$/.test(raw)) return raw;
+    const m = raw.match(/^(\d{1,2}):(\d{2})/);
+    if (m) return `${String(parseInt(m[1], 10)).padStart(2, "0")}:${m[2]}`;
+    const d = new Date(raw);
+    if (!Number.isNaN(d.getTime())) {
+      return new Intl.DateTimeFormat("tr-TR", {
+        timeZone: "Europe/Istanbul",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).format(d);
+    }
+    return raw;
+  }
+
   // Restoran seçimi (buton + mini menü)
   const [restaurant, setRestaurant] = useState<"Happy Moons" | "Roof">("Happy Moons");
   const [restaurantOpen, setRestaurantOpen] = useState(false);
+  const restaurantWrapRef = useRef<HTMLDivElement | null>(null);
 
   // Form state
   const now = new Date();
@@ -106,36 +173,17 @@ export default function ReservationsPage() {
   const mm = String(now.getMonth() + 1).padStart(2, "0");
   const dd = String(now.getDate()).padStart(2, "0");
 
-  // 2) Gün/Ay/Yıl yerine -> Rezervasyon No
   const [reservationNo, setReservationNo] = useState("");
-
-  // 3) Saat yerine -> Masa No
   const [tableNo, setTableNo] = useState("");
-
-  // 4) İsim Soyisim yerine -> Gün/Ay/Yıl (date)
   const [date, setDate] = useState(`${yyyy}-${mm}-${dd}`);
-
-  // 5) Numara yerine -> Saat
   const [time, setTime] = useState("19:00");
-
-  // 6) Gün/Ay/Yıl altına -> Müşteri Ad Soyad
   const [customerFullName, setCustomerFullName] = useState("");
-
-  // 7) Saat altına -> Müşteri Telefon
   const [customerPhone, setCustomerPhone] = useState("");
-
-  // 8) 7 yaş altı çocuk sayısı (artık her iki restoran için de)
   const [childU7Count, setChildU7Count] = useState("");
-
-  // 9) Rezervasyonu alan yetkili isim soyisim
   const [staffFullName, setStaffFullName] = useState("");
-
-  // Sonuncusu: müşteri notu
   const [note, setNote] = useState("");
 
   const datetimeISO = useMemo(() => {
-    // Backend halen datetime bekliyorsa diye ISO da üretip gönderiyoruz.
-    // YYYY-MM-DDTHH:mm:00
     const d = (date || "").trim();
     const t = (time || "").trim();
     if (!d || !t) return "";
@@ -144,29 +192,55 @@ export default function ReservationsPage() {
 
   function onLookupName(v: string) {
     setLookupName(v);
-    setCustomerFullName(v); // form alanını eş zamanlı doldur
-    setTableFilterName(v); // tablo filtre
+    setCustomerFullName(v);
+    setTableFilterName(v);
   }
 
   function onLookupPhone(v: string) {
     const p = normPhone(v);
     setLookupPhone(p);
-    setCustomerPhone(p); // form alanını eş zamanlı doldur
-    setTableFilterPhone(p); // tablo filtre
+    setCustomerPhone(p);
+    setTableFilterPhone(p);
+  }
+
+  function resetLookupAndFilters(syncFormToo = false) {
+    setLookupName("");
+    setLookupPhone("");
+    setLookupErr(null);
+    setLookupResult(null);
+    setTableFilterName("");
+    setTableFilterPhone("");
+
+    if (syncFormToo) {
+      setCustomerFullName("");
+      setCustomerPhone("");
+    }
+  }
+
+  function validateBeforeSave() {
+    const errs: string[] = [];
+    if (!s(reservationNo)) errs.push("Rezervasyon numarası zorunludur.");
+    if (!s(tableNo)) errs.push("Masa numarası zorunludur.");
+    if (!s(date)) errs.push("Tarih zorunludur.");
+    if (!s(time)) errs.push("Saat zorunludur.");
+    if (!s(customerFullName)) errs.push("Müşteri isim soyisim zorunludur.");
+    if (!s(customerPhone)) errs.push("Müşteri telefon numarası zorunludur.");
+    if (!s(staffFullName)) errs.push("Rezervasyonu alan yetkili adı zorunludur.");
+    return errs;
   }
 
   async function load() {
     setMsg(null);
-    setLoading(true);
+    setListLoading(true);
     try {
       const res = await fetch("/api/reservations", { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Rezervasyonlar alınamadı");
-      setRows(data.rows || []);
+      setRows(Array.isArray(data.rows) ? data.rows : []);
     } catch (e: any) {
       setMsg(e?.message || "Hata");
     } finally {
-      setLoading(false);
+      setListLoading(false);
     }
   }
 
@@ -202,6 +276,25 @@ export default function ReservationsPage() {
     load();
   }, []);
 
+  // Restoran dropdown: dışarı tıkla / ESC kapat
+  useEffect(() => {
+    function onDocDown(e: MouseEvent) {
+      if (!restaurantOpen) return;
+      const el = restaurantWrapRef.current;
+      const t = e.target as any;
+      if (el && t && !el.contains(t)) setRestaurantOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setRestaurantOpen(false);
+    }
+    document.addEventListener("mousedown", onDocDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [restaurantOpen]);
+
   // Otomatik sorgu (debounce): Ad Soyad + Telefon dolunca 450ms sonra kontrol
   useEffect(() => {
     const n = lookupName.trim();
@@ -223,35 +316,41 @@ export default function ReservationsPage() {
 
   async function createReservation() {
     setMsg(null);
-    setLoading(true);
+
+    const errs = validateBeforeSave();
+    if (errs.length) {
+      setMsg(errs[0]);
+      return;
+    }
+
+    setSaving(true);
 
     try {
       const payload: any = {
         restaurant,
 
-        reservation_no: reservationNo,
-        table_no: tableNo,
+        reservation_no: s(reservationNo),
+        table_no: s(tableNo),
 
-        date,
-        time,
+        date: s(date),
+        time: s(time),
 
-        customer_full_name: customerFullName,
-        customer_phone: customerPhone,
+        customer_full_name: s(customerFullName),
+        customer_phone: normPhone(customerPhone),
 
-        // ✅ DÜZELTME: staff_full_name yerine officer_name
-        officer_name: staffFullName,
-
-        note,
+        officer_name: s(staffFullName),
+        note: s(note),
 
         // geriye uyumluluk (backend eski alanları kullanıyorsa)
         datetime: datetimeISO,
-        full_name: customerFullName,
-        phone: customerPhone,
+        full_name: s(customerFullName),
+        phone: normPhone(customerPhone),
       };
 
-      // ✅ Artık her iki restoran için de çocuk sayısını gönderiyoruz
-      payload.kids_u7 = childU7Count;
-      payload.child_u7 = childU7Count;
+      // her iki restoran için de çocuk sayısı
+      const kids = s(childU7Count);
+      payload.kids_u7 = kids;
+      payload.child_u7 = kids;
 
       const res = await fetch("/api/reservations", {
         method: "POST",
@@ -275,18 +374,13 @@ export default function ReservationsPage() {
       setNote("");
 
       // Sorgulama alanı da temizlensin (form ile çakışmasın)
-      setLookupName("");
-      setLookupPhone("");
-      setLookupErr(null);
-      setLookupResult(null);
-      setTableFilterName("");
-      setTableFilterPhone("");
+      resetLookupAndFilters(false);
 
       await load();
     } catch (e: any) {
       setMsg(e?.message || "Hata");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   }
 
@@ -312,10 +406,9 @@ export default function ReservationsPage() {
     const n = tableFilterName.trim().toLowerCase();
     const p = normPhone(tableFilterPhone);
 
-    // sadece bugünün rezervasyonları
     const today = todayISO();
 
-    return rows
+    return (rows || [])
       .filter((r) => {
         const rd = normalizeToISODate(viewDate(r));
         return rd === today;
@@ -326,6 +419,11 @@ export default function ReservationsPage() {
         const nameOk = !n || rn.includes(n);
         const phoneOk = !p || rp.includes(p);
         return nameOk && phoneOk;
+      })
+      .sort((a, b) => {
+        const ta = String(viewTime(a) || "");
+        const tb = String(viewTime(b) || "");
+        return ta.localeCompare(tb);
       });
   }, [rows, tableFilterName, tableFilterPhone]);
 
@@ -333,9 +431,7 @@ export default function ReservationsPage() {
     <div>
       <div className="text-white/60 text-xs tracking-[0.35em] font-semibold">REZERVASYON</div>
       <h1 className="mt-2 text-2xl md:text-3xl font-extrabold text-white">Rezervasyon Oluştur</h1>
-      <p className="mt-2 text-sm text-white/60">
-        Restoran seçimi ile birlikte rezervasyon bilgilerini kaydedin.
-      </p>
+      <p className="mt-2 text-sm text-white/60">Restoran seçimi ile birlikte rezervasyon bilgilerini kaydedin.</p>
 
       <motion.div
         initial={{ opacity: 0, y: 14 }}
@@ -343,8 +439,8 @@ export default function ReservationsPage() {
         transition={{ duration: 0.45 }}
         className="mt-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5 relative"
       >
-        {/* 1) Sağ üst: Restoran seçimi (aykırı görünüm) */}
-        <div className="absolute -top-4 right-4 z-20">
+        {/* 1) Sağ üst: Restoran seçimi */}
+        <div className="absolute -top-4 right-4 z-20" ref={restaurantWrapRef}>
           <div className="relative">
             <button
               type="button"
@@ -365,10 +461,10 @@ export default function ReservationsPage() {
                       setRestaurant(x);
                       setRestaurantOpen(false);
                     }}
-                    className={[
+                    className={cx(
                       "w-full text-left px-4 py-3 text-sm",
-                      restaurant === x ? "bg-white/10 text-white" : "text-white/80 hover:bg-white/5",
-                    ].join(" ")}
+                      restaurant === x ? "bg-white/10 text-white" : "text-white/80 hover:bg-white/5"
+                    )}
                   >
                     {x}
                   </button>
@@ -392,17 +488,7 @@ export default function ReservationsPage() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setLookupName("");
-                  setLookupPhone("");
-                  setLookupErr(null);
-                  setLookupResult(null);
-                  setTableFilterName("");
-                  setTableFilterPhone("");
-                  // form alanlarını da temizle (senkron)
-                  setCustomerFullName("");
-                  setCustomerPhone("");
-                }}
+                onClick={() => resetLookupAndFilters(true)}
                 className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80 hover:bg-white/10"
               >
                 Temizle
@@ -439,6 +525,7 @@ export default function ReservationsPage() {
                 placeholder="05xx..."
                 inputMode="tel"
               />
+              <div className="mt-1 text-[11px] text-white/40">Sadece rakam girmeniz yeterli (boşluk/çizgi fark etmez).</div>
             </div>
           </div>
 
@@ -453,6 +540,9 @@ export default function ReservationsPage() {
               lookupResult.is_blacklisted ? (
                 <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
                   <div className="font-semibold">Uyarı: Bu misafir kara listede görünüyor.</div>
+                  {lookupResult.match?.risk_level ? (
+                    <div className="mt-1 text-xs text-amber-100/80">Risk: {lookupResult.match.risk_level}</div>
+                  ) : null}
                   {lookupResult.match?.note ? (
                     <div className="mt-1 text-xs text-amber-100/80">Not: {lookupResult.match.note}</div>
                   ) : null}
@@ -464,9 +554,7 @@ export default function ReservationsPage() {
               )
             ) : (
               <div className="text-xs text-white/45">
-                {lookupName.trim() && lookupPhone.trim()
-                  ? "Sonuç bekleniyor..."
-                  : "Sorgulamak için Ad Soyad ve Telefon girin."}
+                {lookupName.trim() && lookupPhone.trim() ? "Sonuç bekleniyor..." : "Sorgulamak için Ad Soyad ve Telefon girin."}
               </div>
             )}
           </div>
@@ -483,6 +571,7 @@ export default function ReservationsPage() {
               className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
               placeholder="Örn: RZV-1024"
             />
+            <div className="mt-1 text-[11px] text-white/40">Öneri: POS/defter numarası ile aynı format.</div>
           </div>
 
           {/* 3) Masa No */}
@@ -506,7 +595,6 @@ export default function ReservationsPage() {
               onChange={(e) => setDate(e.target.value)}
               className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
             />
-            {/* 6) altına müşteri adı */}
             <div className="mt-3">
               <label className="text-xs text-white/60">Müşteri isim soyisim</label>
               <input
@@ -527,12 +615,12 @@ export default function ReservationsPage() {
               onChange={(e) => setTime(e.target.value)}
               className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
             />
-            {/* 7) altına müşteri telefon */}
             <div className="mt-3">
               <label className="text-xs text-white/60">Müşteri telefon numarası</label>
               <input
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
+                onBlur={() => setCustomerPhone((p) => normPhone(p))}
                 className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
                 placeholder="05xx..."
                 inputMode="tel"
@@ -540,7 +628,7 @@ export default function ReservationsPage() {
             </div>
           </div>
 
-          {/* 8) 7 yaş altı çocuk sayısı (Happy Moons + Roof) */}
+          {/* 8) 7 yaş altı çocuk sayısı */}
           <div>
             <label className="text-xs text-white/60">7 yaş altı çocuk sayısı</label>
             <input
@@ -575,16 +663,63 @@ export default function ReservationsPage() {
           />
         </div>
 
-        <div className="mt-5 flex items-center justify-between gap-3">
-          <div className="text-sm text-white/70">{msg}</div>
-          <button
-            type="button"
-            onClick={createReservation}
-            disabled={loading}
-            className="rounded-xl bg-[#0ea5ff] px-5 py-3 text-sm font-semibold text-[#06121f] disabled:opacity-60"
-          >
-            {loading ? "Kaydediliyor..." : "Rezervasyon oluştur"}
-          </button>
+        {/* Sticky Action Bar */}
+        <div className="mt-5 sticky bottom-[-1px] -mx-5 px-5 pt-4 pb-5 bg-[#0b1220]/55 backdrop-blur border-t border-white/10">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm text-white/70">
+              {msg ? (
+                <span
+                  className={cx(
+                    "inline-flex rounded-xl border px-3 py-2",
+                    /hata|olamadı|zorunludur|başarısız|error/i.test(msg)
+                      ? "border-red-500/25 bg-red-500/10 text-red-200"
+                      : "border-emerald-500/25 bg-emerald-500/10 text-emerald-100"
+                  )}
+                >
+                  {msg}
+                </span>
+              ) : (
+                <span className="text-white/50">Alanları doldurun ve kaydedin.</span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setReservationNo("");
+                  setTableNo("");
+                  setDate(`${yyyy}-${mm}-${dd}`);
+                  setTime("19:00");
+                  setCustomerFullName("");
+                  setCustomerPhone("");
+                  setChildU7Count("");
+                  setStaffFullName("");
+                  setNote("");
+                  setMsg(null);
+                }}
+                disabled={saving}
+                className={cx(
+                  "rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white hover:bg-white/10",
+                  saving ? "opacity-60 cursor-not-allowed" : ""
+                )}
+              >
+                Formu temizle
+              </button>
+
+              <button
+                type="button"
+                onClick={createReservation}
+                disabled={saving}
+                className={cx(
+                  "rounded-xl bg-[#0ea5ff] px-5 py-3 text-sm font-semibold text-[#06121f] disabled:opacity-60",
+                  saving ? "opacity-60 cursor-not-allowed" : "hover:opacity-90"
+                )}
+              >
+                {saving ? "Kaydediliyor..." : "Rezervasyon oluştur"}
+              </button>
+            </div>
+          </div>
         </div>
       </motion.div>
 
@@ -596,9 +731,20 @@ export default function ReservationsPage() {
         className="mt-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden"
       >
         <div className="px-5 py-4 flex items-center justify-between">
-          <div className="text-white font-semibold">Rezervasyonlar</div>
-          <button type="button" onClick={load} className="text-sm text-white/70 hover:text-white">
-            Yenile
+          <div>
+            <div className="text-white font-semibold">Bugünün Rezervasyonları</div>
+            <div className="text-xs text-white/50 mt-1">
+              {listLoading ? "Yükleniyor..." : `Toplam: ${filteredRows.length}`}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={load}
+            disabled={listLoading}
+            className={cx("text-sm text-white/70 hover:text-white", listLoading ? "opacity-60 cursor-not-allowed" : "")}
+          >
+            {listLoading ? "Yenileniyor..." : "Yenile"}
           </button>
         </div>
 
@@ -620,32 +766,41 @@ export default function ReservationsPage() {
             </thead>
 
             <tbody className="text-white/85">
-              {filteredRows.map((r, idx) => (
-                <tr key={(r.reservation_id || "") + idx} className="border-t border-white/10">
-                  <td className="px-5 py-3 text-white/70 whitespace-nowrap">{r.restaurant || "-"}</td>
-                  <td className="px-5 py-3 whitespace-nowrap">{r.reservation_no || "-"}</td>
-                  <td className="px-5 py-3 text-white/70 whitespace-nowrap">{r.table_no || "-"}</td>
-                  <td className="px-5 py-3 text-white/70 whitespace-nowrap">{viewDate(r)}</td>
-                  <td className="px-5 py-3 text-white/70 whitespace-nowrap">{viewTime(r)}</td>
-                  <td className="px-5 py-3 whitespace-nowrap">{viewCustomerName(r)}</td>
-                  <td className="px-5 py-3 text-white/70 whitespace-nowrap">{viewCustomerPhone(r)}</td>
-                  <td className="px-5 py-3 text-white/70 whitespace-nowrap">
-                    {/* kids_u7 / child_u7 her restoran için */}
-                    {r.kids_u7 || r.child_u7 || "-"}
-                  </td>
-                  <td className="px-5 py-3 text-white/70 whitespace-nowrap">
-                    {r.officer_name || r.authorized_name || "-"}
-                  </td>
-                  <td className="px-5 py-3 text-white/70 min-w-[260px]">{r.note || "-"}</td>
-                </tr>
-              ))}
+              {listLoading ? (
+                Array.from({ length: 7 }).map((_, i) => (
+                  <tr key={i} className="border-t border-white/10 animate-pulse">
+                    {Array.from({ length: 10 }).map((__, j) => (
+                      <td key={j} className="px-5 py-3">
+                        <div className="h-3 rounded bg-white/10" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : (
+                <>
+                  {filteredRows.map((r, idx) => (
+                    <tr key={(r.reservation_id || "") + idx} className="border-t border-white/10 hover:bg-white/5">
+                      <td className="px-5 py-3 text-white/70 whitespace-nowrap">{r.restaurant || "-"}</td>
+                      <td className="px-5 py-3 whitespace-nowrap">{r.reservation_no || "-"}</td>
+                      <td className="px-5 py-3 text-white/70 whitespace-nowrap">{r.table_no || "-"}</td>
+                      <td className="px-5 py-3 text-white/70 whitespace-nowrap">{formatTRDate(viewDate(r))}</td>
+                      <td className="px-5 py-3 text-white/70 whitespace-nowrap">{formatTRTime(viewTime(r))}</td>
+                      <td className="px-5 py-3 whitespace-nowrap">{viewCustomerName(r)}</td>
+                      <td className="px-5 py-3 text-white/70 whitespace-nowrap">{viewCustomerPhone(r)}</td>
+                      <td className="px-5 py-3 text-white/70 whitespace-nowrap">{r.kids_u7 || r.child_u7 || "-"}</td>
+                      <td className="px-5 py-3 text-white/70 whitespace-nowrap">{r.officer_name || r.authorized_name || "-"}</td>
+                      <td className="px-5 py-3 text-white/70 min-w-[260px]">{r.note || "-"}</td>
+                    </tr>
+                  ))}
 
-              {filteredRows.length === 0 && (
-                <tr className="border-t border-white/10">
-                  <td className="px-5 py-10 text-white/55" colSpan={10}>
-                    Kayıt yok.
-                  </td>
-                </tr>
+                  {filteredRows.length === 0 && (
+                    <tr className="border-t border-white/10">
+                      <td className="px-5 py-10 text-white/55" colSpan={10}>
+                        Sonuç yok. (Bugünün rezervasyonları listelenir. Sorgulama alanları ile filtrelenir.)
+                      </td>
+                    </tr>
+                  )}
+                </>
               )}
             </tbody>
           </table>

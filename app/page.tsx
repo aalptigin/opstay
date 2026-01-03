@@ -371,7 +371,7 @@ function ContactSection() {
           </div>
 
           <div className="mt-10 border-t border-white/10 pt-6 text-sm text-white/55">
-            Tüm hakları saklıdır © 2025
+            Tüm hakları saklıdır © 2026
           </div>
         </div>
       </div>
@@ -552,7 +552,7 @@ export default function HomePage() {
           </div>
 
           <div className="mt-10 flex items-center justify-between text-xs text-[#0b1326]/45">
-            <span>© 2025 OpsStay. Tüm hakları saklıdır.</span>
+            <span>© 2026 OpsStay. Tüm hakları saklıdır.</span>
             <span>OpsStay yalnızca operasyon doğrulaması üretir.</span>
           </div>
         </div>

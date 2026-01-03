@@ -1,48 +1,97 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Row = Record<string, any>;
-
 function s(v: any) {
   return String(v ?? "").trim();
 }
 
-/** Daha güvenli: birden çok olası anahtardan ilk dolu değeri seç */
+function cx(...a: Array<string | false | undefined | null>) {
+  return a.filter(Boolean).join(" ");
+}
+
 function pick(obj: any, keys: string[]) {
   for (const k of keys) {
     const v = obj?.[k];
     if (v === null || v === undefined) continue;
-    const sv = s(v);
-    if (sv !== "") return v;
+    const str = String(v).trim();
+    if (str !== "") return v;
   }
   return "";
 }
 
-/** Telefon normalize (opsiyonel): boşluk, tire vb temizle */
 function normPhone(v: any) {
   return String(v ?? "").replace(/[^\d+]/g, "").trim();
 }
 
-/** fetch response'u güvenli JSON'a çevir (500/HTML vb. durumlarda patlamasın) */
-async function safeReadJson(res: Response) {
-  const text = await res.text().catch(() => "");
-  if (!text) return { _raw: "" };
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { _raw: text };
+// date: API GET normalize -> dd/MM/yyyy dönebiliyor. Edit ekranda TR format gösterelim.
+function formatTRDate(v: any) {
+  const raw = s(v);
+  if (!raw) return "";
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) return raw;
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(raw)) return raw.replace(/\./g, "/");
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const d = new Date(`${raw}T00:00:00`);
+    if (!Number.isNaN(d.getTime())) {
+      const out = new Intl.DateTimeFormat("tr-TR", {
+        timeZone: "Europe/Istanbul",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(d);
+      return out.replace(/\./g, "/");
+    }
   }
+  const d = new Date(raw);
+  if (!Number.isNaN(d.getTime())) {
+    const out = new Intl.DateTimeFormat("tr-TR", {
+      timeZone: "Europe/Istanbul",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(d);
+    return out.replace(/\./g, "/");
+  }
+  return raw;
 }
 
-/** Hata mesajını her durumda güvenli stringe çevir */
-function errMsg(e: any, fallback: string) {
-  // Error instance
-  if (e && typeof e === "object" && "message" in e) return s((e as any).message) || fallback;
-  // string
-  if (typeof e === "string") return s(e) || fallback;
-  // unknown
-  return fallback;
+function formatTRTime(v: any) {
+  const raw = s(v);
+  if (!raw) return "";
+  if (/^\d{2}:\d{2}$/.test(raw)) return raw;
+  const m = raw.match(/^(\d{1,2}):(\d{2})/);
+  if (m) return `${String(parseInt(m[1], 10)).padStart(2, "0")}:${m[2]}`;
+  const d = new Date(raw);
+  if (!Number.isNaN(d.getTime())) {
+    return new Intl.DateTimeFormat("tr-TR", {
+      timeZone: "Europe/Istanbul",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(d);
+  }
+  return raw;
+}
+
+function validateForm(x: {
+  restaurant: string;
+  reservationNo: string;
+  tableNo: string;
+  date: string;
+  time: string;
+  customerFullName: string;
+  customerPhone: string;
+}) {
+  const errs: string[] = [];
+  if (!s(x.restaurant)) errs.push("Restoran zorunludur.");
+  if (!s(x.reservationNo)) errs.push("Rez. No zorunludur.");
+  if (!s(x.tableNo)) errs.push("Masa No zorunludur.");
+  if (!s(x.date)) errs.push("Tarih zorunludur.");
+  if (!s(x.time)) errs.push("Saat zorunludur.");
+  if (!s(x.customerFullName)) errs.push("Müşteri adı zorunludur.");
+  if (!s(x.customerPhone)) errs.push("Telefon zorunludur.");
+  return errs;
 }
 
 export default function Page() {
@@ -66,43 +115,43 @@ export default function Page() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string>("");
 
-  /** Satır için güvenli "kimlik": id yoksa rez no ile devam */
-  function rowKey(r: Row, idx?: number) {
-    const id = s(pick(r, ["reservation_id", "resarvation_id", "id"]));
-    const rez = s(pick(r, ["reservation_no", "reservation_n0", "rez_no"]));
-    return id || rez || `row-${idx ?? 0}`;
+  const searchRef = useRef<HTMLInputElement | null>(null);
+
+  async function load() {
+    setLoading(true);
+    setErr("");
+    try {
+      const r = await fetch("/api/reservations", { cache: "no-store" });
+      const j = await r.json();
+      setRows(Array.isArray(j?.rows) ? j.rows : []);
+    } catch (e: any) {
+      setErr(e?.message || "Yükleme hatası");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
     let alive = true;
 
-    async function load() {
+    async function boot() {
       setLoading(true);
       setErr("");
       try {
         const r = await fetch("/api/reservations", { cache: "no-store" });
-        const j = await safeReadJson(r);
-
+        const j = await r.json();
         if (!alive) return;
-
-        if (!r.ok) {
-          const message = s(j?.error) || s(j?._raw) || `Yükleme hatası (${r.status})`;
-          setErr(message);
-          setRows([]);
-          return;
-        }
-
         setRows(Array.isArray(j?.rows) ? j.rows : []);
       } catch (e: any) {
         if (!alive) return;
-        setErr(errMsg(e, "Yükleme hatası"));
+        setErr(e?.message || "Yükleme hatası");
       } finally {
         if (!alive) return;
         setLoading(false);
       }
     }
 
-    load();
+    boot();
     return () => {
       alive = false;
     };
@@ -110,6 +159,7 @@ export default function Page() {
 
   // bir kayıt seçildiğinde form alanlarını doldur
   useEffect(() => {
+    setMsg("");
     if (!selected) {
       setRestaurant("");
       setReservationNo("");
@@ -122,14 +172,27 @@ export default function Page() {
       return;
     }
 
-    setRestaurant(s(pick(selected, ["restaurant", "restaurant_name"])));
-    setReservationNo(s(pick(selected, ["reservation_no", "reservation_n0", "rez_no"])));
-    setTableNo(s(pick(selected, ["table_no", "masa_no", "table_n0"])));
-    setDate(s(pick(selected, ["date", "gun_ay_yil", "dayMonthYear"])));
-    setTime(s(pick(selected, ["time", "saat"])));
-    setCustomerFullName(s(pick(selected, ["customer_full_name", "full_name", "guest_full_name"])));
-    setCustomerPhone(s(pick(selected, ["customer_phone", "phone", "telefon"])));
-    setNote(s(pick(selected, ["note", "customer_note", "summary", "not"])));
+    // GET normalizeReservationRow ile gelen alias'ları da destekle
+    const rest = s(pick(selected, ["restaurant", "restaurant_name"]));
+    const rz = s(pick(selected, ["reservation_no", "reservation_n0"]));
+    const tb = s(pick(selected, ["table_no", "masa_no"]));
+
+    const d = s(pick(selected, ["date", "gun_ay_yil"]));
+    const t = s(pick(selected, ["time", "saat"]));
+
+    const cn = s(pick(selected, ["customer_full_name", "full_name"]));
+    const cp = s(pick(selected, ["customer_phone", "phone"]));
+
+    const nt = s(pick(selected, ["note", "customer_note"]));
+
+    setRestaurant(rest);
+    setReservationNo(rz);
+    setTableNo(tb);
+    setDate(d ? formatTRDate(d) : "");
+    setTime(t ? formatTRTime(t) : "");
+    setCustomerFullName(cn);
+    setCustomerPhone(normPhone(cp));
+    setNote(nt);
   }, [selected]);
 
   const filtered = useMemo(() => {
@@ -138,15 +201,13 @@ export default function Page() {
 
     return rows.filter((r) => {
       const hay = [
-        r.restaurant,
-        r.restaurant_name,
-        r.reservation_no,
-        r.reservation_n0,
-        r.rez_no,
-        r.customer_full_name,
-        r.full_name,
-        r.customer_phone,
-        r.phone,
+        pick(r, ["restaurant", "restaurant_name"]),
+        pick(r, ["reservation_no", "reservation_n0"]),
+        pick(r, ["customer_full_name", "full_name"]),
+        pick(r, ["customer_phone", "phone"]),
+        pick(r, ["table_no", "masa_no"]),
+        pick(r, ["date", "gun_ay_yil"]),
+        pick(r, ["time", "saat"]),
       ]
         .map((x) => s(x).toLowerCase())
         .join(" | ");
@@ -155,84 +216,81 @@ export default function Page() {
     });
   }, [rows, q]);
 
+  const selectedId = useMemo(() => {
+    if (!selected) return "";
+    return s(pick(selected, ["reservation_id", "resarvation_id"]));
+  }, [selected]);
+
   async function handleSave() {
     if (!selected) return;
 
-    setSaving(true);
     setMsg("");
+    const reservation_id = s(pick(selected, ["reservation_id", "resarvation_id"]));
+    if (!reservation_id) {
+      setMsg("reservation_id alanı bulunamadı");
+      return;
+    }
+
+    const errs = validateForm({
+      restaurant,
+      reservationNo,
+      tableNo,
+      date,
+      time,
+      customerFullName,
+      customerPhone,
+    });
+
+    if (errs.length) {
+      setMsg(errs[0]);
+      return;
+    }
+
+    setSaving(true);
 
     try {
-      // ✅ En güvenlisi: önce id (varsa), yoksa rez no ile de devam etmeyi dene
-      const reservation_id = s(pick(selected, ["reservation_id", "resarvation_id", "id"]));
-      const reservation_no_fallback = s(pick(selected, ["reservation_no", "reservation_n0", "rez_no"])) || s(reservationNo);
-
-      // En azından bir tanesi olmalı
-      if (!reservation_id && !reservation_no_fallback) {
-        throw new Error("Güncelleme için rezervasyon kimliği bulunamadı (reservation_id veya rezervasyon no).");
-      }
-
-      const payload = {
-        // backend sadece reservation_id istiyorsa bile gönderiyoruz; yoksa fallback alanı da gider
-        reservation_id: reservation_id || undefined,
-        reservation_no: reservationNo || reservation_no_fallback || undefined,
-
-        restaurant,
-        restaurant_name: restaurant, // bazı backendlerde bu isim kullanılabiliyor
-
-        table_no: tableNo,
-        date,
-        time,
-
-        customer_full_name: customerFullName,
-        full_name: customerFullName, // legacy
-        customer_phone: normPhone(customerPhone),
-        phone: normPhone(customerPhone), // legacy
-
-        note,
-        customer_note: note, // legacy
-      };
-
       const res = await fetch("/api/reservations/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          reservation_id,
+
+          // API route normalize ediyor: restaurant / restaurant_name ikisini de alıyor
+          restaurant,
+          restaurant_name: restaurant,
+
+          reservation_no: reservationNo,
+          table_no: tableNo,
+
+          // API route normalize ediyor: date/time TR formatlarını Date() ile çözebiliyor
+          date,
+          time,
+
+          customer_full_name: customerFullName,
+          customer_phone: normPhone(customerPhone),
+
+          note,
+        }),
       });
 
-      const data = await safeReadJson(res);
-
-      // ✅ JSON dönmese bile patlamasın
-      if (!res.ok) {
-        const serverErr = s(data?.error) || s(data?._raw) || `Kayıt güncellenemedi (${res.status})`;
-        throw new Error(serverErr);
-      }
-
-      // bazı route'lar {ok:true} döndürür, bazıları boş döner; ikisini de kabul edelim
-      if (data && typeof data === "object" && "ok" in data && !data.ok) {
-        const serverErr = s((data as any)?.error) || "Kayıt güncellenemedi";
-        throw new Error(serverErr);
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data?.error || "Kayıt güncellenemedi");
       }
 
       setMsg("Kayıt güncellendi.");
 
       // local state’i de güncelle
-      const targetKey = reservation_id || reservation_no_fallback;
-
       setRows((prev) =>
-        prev.map((r, idx) => {
-          const k = rowKey(r, idx);
-          // Önce reservation_id ile, yoksa rez no ile yakala
-          const match =
-            (reservation_id && k === reservation_id) ||
-            (!reservation_id && reservation_no_fallback && k === reservation_no_fallback);
-
-          if (!match) return r;
+        prev.map((r) => {
+          const rid = s(pick(r, ["reservation_id", "resarvation_id"]));
+          if (rid !== reservation_id) return r;
 
           return {
             ...r,
             restaurant,
             restaurant_name: restaurant,
-            reservation_no: reservationNo || reservation_no_fallback,
-            reservation_n0: reservationNo || reservation_no_fallback,
+            reservation_no: reservationNo,
             table_no: tableNo,
             date,
             time,
@@ -246,19 +304,16 @@ export default function Page() {
         })
       );
 
-      // seçili kaydı da güncel tut (liste ile tutarsız kalmasın)
+      // seçili kaydı da güncel tut
       setSelected((prev) => {
         if (!prev) return prev;
-        const k = rowKey(prev);
-        if (reservation_id && k !== reservation_id) return prev;
-        if (!reservation_id && reservation_no_fallback && k !== reservation_no_fallback) return prev;
-
+        const rid = s(pick(prev, ["reservation_id", "resarvation_id"]));
+        if (rid !== reservation_id) return prev;
         return {
           ...prev,
           restaurant,
           restaurant_name: restaurant,
-          reservation_no: reservationNo || reservation_no_fallback,
-          reservation_n0: reservationNo || reservation_no_fallback,
+          reservation_no: reservationNo,
           table_no: tableNo,
           date,
           time,
@@ -271,7 +326,7 @@ export default function Page() {
         };
       });
     } catch (e: any) {
-      setMsg(errMsg(e, "Kayıt güncellenemedi"));
+      setMsg(e?.message || "Kayıt güncellenemedi");
     } finally {
       setSaving(false);
     }
@@ -279,76 +334,117 @@ export default function Page() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Rezervasyon Düzenle</h1>
-        <p className="text-white/60 text-sm">
-          Bu ekran, mevcut rezervasyonları listeden seçip temel bilgilerini
-          güncellemeniz için hazırlanmıştır.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Rezervasyon Düzenle</h1>
+          <p className="text-white/60 text-sm">
+            Bu ekran, mevcut rezervasyonları listeden seçip temel bilgilerini güncellemeniz için hazırlanmıştır.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setSelected(null);
+              setMsg("");
+              // UX: aramaya geri dön
+              setTimeout(() => searchRef.current?.focus(), 0);
+            }}
+            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
+          >
+            Seçimi kaldır
+          </button>
+
+          <button
+            type="button"
+            onClick={load}
+            disabled={loading}
+            className={cx(
+              "rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10",
+              loading ? "opacity-60 cursor-not-allowed" : ""
+            )}
+          >
+            {loading ? "Yenileniyor..." : "Yenile"}
+          </button>
+        </div>
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
         <label className="text-xs text-white/60">Arama</label>
         <input
+          ref={searchRef}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Rez. no / müşteri / telefon..."
           className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none focus:border-white/20"
         />
+        <div className="mt-2 text-xs text-white/45">
+          İpucu: Telefon, rezervasyon no veya müşteri adı ile arayabilirsiniz.
+        </div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
         {/* Sol: Liste */}
         <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
           <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
-            <div className="text-sm text-white/70">
-              {loading ? "Yükleniyor..." : `Kayıt: ${filtered.length}`}
-            </div>
+            <div className="text-sm text-white/70">{loading ? "Yükleniyor..." : `Kayıt: ${filtered.length}`}</div>
             {err ? <div className="text-sm text-red-300">{err}</div> : null}
           </div>
 
           <div className="max-h-[520px] overflow-auto">
-            {filtered.map((r, idx) => {
-              const key = rowKey(r, idx);
-              const active =
-                !!selected && rowKey(selected) === key;
+            {loading ? (
+              <div className="p-4 space-y-2 animate-pulse">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="h-10 rounded-xl bg-white/10" />
+                ))}
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="px-4 py-8 text-sm text-white/50">Sonuç bulunamadı.</div>
+            ) : (
+              filtered.map((r, idx) => {
+                const rowId = s(pick(r, ["reservation_id", "resarvation_id"])) || `row-${idx}`;
+                const active = selectedId && selectedId === s(pick(r, ["reservation_id", "resarvation_id"]));
 
-              const label = `${s(
-                pick(r, ["restaurant", "restaurant_name"])
-              )} • ${s(pick(r, ["reservation_no", "reservation_n0", "rez_no"]))} • ${s(
-                pick(r, ["customer_full_name", "full_name"])
-              )}`;
+                const label = `${s(pick(r, ["restaurant", "restaurant_name"]))} • ${s(
+                  pick(r, ["reservation_no", "reservation_n0"])
+                )} • ${s(pick(r, ["customer_full_name", "full_name"]))}`;
 
-              return (
-                <button
-                  key={key}
-                  onClick={() => setSelected(r)}
-                  className={[
-                    "w-full text-left px-4 py-3 border-b border-white/10 hover:bg-white/5",
-                    active ? "bg-white/10" : "",
-                  ].join(" ")}
-                >
-                  <div className="text-sm">{label || "-"}</div>
-                  <div className="text-xs text-white/50">
-                    {s(pick(r, ["date", "gun_ay_yil"]))} • {s(pick(r, ["time", "saat"]))} •{" "}
-                    {s(pick(r, ["customer_phone", "phone"]))}
-                  </div>
-                </button>
-              );
-            })}
+                const d = s(pick(r, ["date", "gun_ay_yil"]));
+                const t = s(pick(r, ["time", "saat"]));
+                const ph = s(pick(r, ["customer_phone", "phone"]));
+
+                return (
+                  <button
+                    key={rowId}
+                    onClick={() => setSelected(r)}
+                    className={cx(
+                      "w-full text-left px-4 py-3 border-b border-white/10 hover:bg-white/5",
+                      active ? "bg-white/10" : ""
+                    )}
+                  >
+                    <div className="text-sm">{label || "-"}</div>
+                    <div className="text-xs text-white/50">
+                      {formatTRDate(d) || "-"} • {formatTRTime(t) || "-"} • {ph ? normPhone(ph) : "-"}
+                    </div>
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
 
         {/* Sağ: Form */}
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-          <div className="text-sm font-medium mb-2">Seçili Rezervasyon</div>
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium">Seçili Rezervasyon</div>
+            {selectedId ? <div className="text-xs text-white/45">ID: {selectedId}</div> : null}
+          </div>
 
           {!selected ? (
-            <div className="text-sm text-white/50">
-              Soldan bir rezervasyon seçin.
-            </div>
+            <div className="mt-3 text-sm text-white/50">Soldan bir rezervasyon seçin.</div>
           ) : (
-            <div className="space-y-3 text-sm">
+            <div className="mt-3 space-y-3 text-sm">
               <div>
                 <label className="text-xs text-white/60">Restoran</label>
                 <input
@@ -383,16 +479,20 @@ export default function Page() {
                   <input
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
+                    placeholder="29/12/2025"
                     className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none focus:border-white/20"
                   />
+                  <div className="mt-1 text-[11px] text-white/40">Format: dd/MM/yyyy</div>
                 </div>
                 <div>
                   <label className="text-xs text-white/60">Saat</label>
                   <input
                     value={time}
                     onChange={(e) => setTime(e.target.value)}
+                    placeholder="19:00"
                     className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none focus:border-white/20"
                   />
+                  <div className="mt-1 text-[11px] text-white/40">Format: HH:mm</div>
                 </div>
               </div>
 
@@ -410,7 +510,9 @@ export default function Page() {
                 <input
                   value={customerPhone}
                   onChange={(e) => setCustomerPhone(e.target.value)}
+                  onBlur={() => setCustomerPhone((p) => normPhone(p))}
                   className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none focus:border-white/20"
+                  inputMode="tel"
                 />
               </div>
 
@@ -419,20 +521,52 @@ export default function Page() {
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none focus:border-white/20 min-h-[80px]"
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none focus:border-white/20 min-h-[90px]"
                 />
               </div>
 
-              <div className="pt-3 flex items-center justify-between gap-3">
-                <span className="text-xs text-white/60">{msg}</span>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="rounded-xl bg-[#0ea5ff] px-4 py-2 text-sm font-semibold text-black disabled:opacity-60"
-                >
-                  {saving ? "Kaydediliyor..." : "Kaydet"}
-                </button>
+              <div className="pt-3 sticky bottom-[-1px] -mx-4 px-4 pb-4 bg-[#0b1220]/55 backdrop-blur border-t border-white/10">
+                <div className="flex items-center justify-between gap-3 pt-3">
+                  <span
+                    className={cx(
+                      "text-xs",
+                      msg
+                        ? /hata|bulunamadı|güncellenemedi|error|zorunludur/i.test(msg)
+                          ? "text-red-200"
+                          : "text-emerald-200"
+                        : "text-white/60"
+                    )}
+                  >
+                    {msg ? msg : "Değişiklikleri kaydetmek için Kaydet’e basın."}
+                  </span>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelected(null);
+                        setMsg("");
+                        setTimeout(() => searchRef.current?.focus(), 0);
+                      }}
+                      disabled={saving}
+                      className={cx(
+                        "rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10",
+                        saving ? "opacity-60 cursor-not-allowed" : ""
+                      )}
+                    >
+                      Vazgeç
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleSave}
+                      disabled={saving}
+                      className="rounded-xl bg-[#0ea5ff] px-4 py-2 text-sm font-semibold text-black disabled:opacity-60"
+                    >
+                      {saving ? "Kaydediliyor..." : "Kaydet"}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}

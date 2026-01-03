@@ -1,4 +1,3 @@
-// app/panel/kayit/ekle/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -30,6 +29,8 @@ function pad2(n: number) {
   return String(n).padStart(2, "0");
 }
 
+type RiskLevel = "Düşük" | "Orta" | "Yüksek";
+
 export default function KayitEklePage() {
   // form state
   const [reservationNo, setReservationNo] = useState("");
@@ -50,6 +51,9 @@ export default function KayitEklePage() {
   const [note, setNote] = useState("");
 
   const [restaurant, setRestaurant] = useState<"Roof" | "Happy Moons">("Roof");
+
+  // RISK
+  const [riskLevel, setRiskLevel] = useState<RiskLevel>("Orta");
 
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -106,6 +110,7 @@ export default function KayitEklePage() {
         authorized_name: addedBy,
         note,
         status: "blacklist",
+        risk_level: riskLevel,
       };
 
       const res = await fetch("/api/records", {
@@ -123,6 +128,7 @@ export default function KayitEklePage() {
       setTableNo("");
       setPhone("");
       setNote("");
+      setRiskLevel("Orta");
     } catch (e: any) {
       setMsg(e?.message || "Hata");
     } finally {
@@ -258,6 +264,47 @@ export default function KayitEklePage() {
               className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
               placeholder="Örn: Yetkili Ad Soyad"
             />
+          </div>
+
+          {/* RISK */}
+          <div className="md:col-span-2">
+            <label className="text-xs text-white/60">Risk seviyesi</label>
+            <div className="mt-2 grid md:grid-cols-3 gap-3">
+              {(
+                [
+                  {
+                    key: "Düşük",
+                    title: "Düşük",
+                    desc: "Operasyon uyarısı: tekrar eden uygunsuzluk / düşük etkili sorun.",
+                  },
+                  {
+                    key: "Orta",
+                    title: "Orta",
+                    desc: "Servis/ekip riski: tartışma, uygunsuz davranış, sürekli problem.",
+                  },
+                  {
+                    key: "Yüksek",
+                    title: "Yüksek",
+                    desc: "Güvenlik riski: tehdit/şiddet, ciddi olay, maddi hasar vb.",
+                  },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => setRiskLevel(opt.key)}
+                  className={[
+                    "rounded-2xl border p-4 text-left transition",
+                    riskLevel === opt.key
+                      ? "border-[#0ea5ff]/60 bg-[#0ea5ff]/10"
+                      : "border-white/10 bg-white/5 hover:bg-white/10",
+                  ].join(" ")}
+                >
+                  <div className="text-sm font-semibold text-white">{opt.title}</div>
+                  <div className="mt-1 text-xs text-white/60">{opt.desc}</div>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

@@ -100,6 +100,9 @@ function normalizeRecordRow(row: any) {
   // çocuk sayısı
   const child_u7 = s(pick(row, ["child_u7", "kids_u7", "children_u7", "cocuk_7_alti"]));
 
+  // risk seviyesi
+  const risk_level = s(pick(row, ["risk_level", "risk", "riskLevel", "severity", "level"]));
+
   // not: bazı sheet’lerde blacklist_note / customer_note var
   const note = s(pick(row, ["note", "blacklist_note", "customer_note", "summary", "not"]));
 
@@ -115,6 +118,7 @@ function normalizeRecordRow(row: any) {
     date,
     time,
     child_u7,
+    risk_level,
     authorized_name,
     authorized_email,
     note,
@@ -125,6 +129,7 @@ function normalizeRecordRow(row: any) {
     customer_full_name: full_name,
     customer_phone: phone,
     kids_u7: child_u7,
+    risk: risk_level,
     officer_name: authorized_name,
     officer_email: authorized_email,
   };
@@ -165,6 +170,8 @@ export async function POST(req: Request) {
 
     const status = s(pick(body, ["status"])) || "active";
 
+    const risk_level = s(pick(body, ["risk_level", "risk", "riskLevel", "severity", "level"])) || "";
+
     const r = await gsCall("records.add", {
       restaurant_name,
       reservation_no,
@@ -176,6 +183,7 @@ export async function POST(req: Request) {
       kids_u7: child_u7,
       note,
       status,
+      risk_level,
 
       // ✅ Ekleyen yetkili isim: Sheets’te kolon varsa dolsun diye ayrıca gönderiyoruz
       authorized_name,
@@ -206,6 +214,7 @@ export async function PUT(req: Request) {
       kids_u7: pick(body, ["child_u7", "kids_u7", "children_u7"]) || undefined,
       note: pick(body, ["note", "blacklist_note", "customer_note"]) || undefined,
       status: pick(body, ["status"]) || undefined,
+      risk_level: pick(body, ["risk_level", "risk", "riskLevel", "severity", "level"]) || undefined,
       authorized_name: pick(body, ["authorized_name", "officer_name"]) || undefined,
     };
 

@@ -65,17 +65,13 @@ function normalizeTime(v: any) {
 
 function normReservationRow(r: Row) {
   const restaurant = s(pick(r, ["restaurant", "restaurant_name"]));
-  const reservation_no = s(
-    pick(r, ["reservation_no", "reservation_n0", "reservationNumber", "reservation_id"])
-  );
+  const reservation_no = s(pick(r, ["reservation_no", "reservation_n0", "reservationNumber", "reservation_id"]));
   const table_no = s(pick(r, ["table_no", "table_n0", "masa_no"]));
 
   let date = normalizeDate(pick(r, ["date", "gun_ay_yil"]));
   let time = normalizeTime(pick(r, ["time", "saat"]));
 
-  const customer_full_name = s(
-    pick(r, ["customer_full_name", "full_name", "guest_full_name"])
-  );
+  const customer_full_name = s(pick(r, ["customer_full_name", "full_name", "guest_full_name"]));
   const customer_phone = s(pick(r, ["customer_phone", "phone", "guest_phone"]));
 
   const kids_u7 = s(pick(r, ["kids_u7", "child_u7", "children_u7"]));
@@ -100,6 +96,63 @@ function normReservationRow(r: Row) {
   };
 }
 
+function cx(...a: Array<string | false | undefined | null>) {
+  return a.filter(Boolean).join(" ");
+}
+
+function SkeletonCell() {
+  return <div className="h-3 w-full rounded bg-white/10 animate-pulse" />;
+}
+
+function SkeletonRow() {
+  return (
+    <tr className="border-b border-white/10">
+      <td className="px-4 py-3">
+        <SkeletonCell />
+      </td>
+      <td className="px-4 py-3">
+        <SkeletonCell />
+      </td>
+      <td className="px-4 py-3">
+        <SkeletonCell />
+      </td>
+      <td className="px-4 py-3">
+        <SkeletonCell />
+      </td>
+      <td className="px-4 py-3">
+        <SkeletonCell />
+      </td>
+      <td className="px-4 py-3">
+        <SkeletonCell />
+      </td>
+      <td className="px-4 py-3">
+        <SkeletonCell />
+      </td>
+      <td className="px-4 py-3">
+        <SkeletonCell />
+      </td>
+      <td className="px-4 py-3">
+        <SkeletonCell />
+      </td>
+      <td className="px-4 py-3">
+        <SkeletonCell />
+      </td>
+    </tr>
+  );
+}
+
+function EmptyState({ title, desc }: { title: string; desc: string }) {
+  return (
+    <div className="px-4 py-10">
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
+        <div className="mx-auto mb-3 h-10 w-10 rounded-xl bg-white/10" />
+        <div className="text-white font-semibold">{title}</div>
+        <div className="mt-1 text-sm text-white/60">{desc}</div>
+      </div>
+    </div>
+  );
+}
+
 export default function Page() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,6 +162,10 @@ export default function Page() {
   const [q, setQ] = useState("");
   const [restaurant, setRestaurant] = useState<string>("all");
   const [date, setDate] = useState<string>(""); // dd/MM/yyyy
+
+  // küçük UX iyileştirmeleri
+  const [selectedKey, setSelectedKey] = useState<string>("");
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -120,6 +177,8 @@ export default function Page() {
       try {
         const r1 = await fetch("/api/reservations", { cache: "no-store" });
         const j1 = await r1.json();
+
+        if (!r1.ok) throw new Error(j1?.error || "Rezervasyonlar alınamadı");
 
         const rr = Array.isArray(j1?.rows) ? j1.rows : [];
         const normalized = rr.map(normReservationRow);
@@ -140,6 +199,25 @@ export default function Page() {
       alive = false;
     };
   }, []);
+
+  async function reload() {
+    setRefreshing(true);
+    setErr("");
+    try {
+      const r1 = await fetch("/api/reservations", { cache: "no-store" });
+      const j1 = await r1.json();
+      if (!r1.ok) throw new Error(j1?.error || "Rezervasyonlar alınamadı");
+
+      const rr = Array.isArray(j1?.rows) ? j1.rows : [];
+      const normalized = rr.map(normReservationRow);
+
+      setRows(normalized);
+    } catch (e: any) {
+      setErr(e?.message || "Yükleme hatası");
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   const restaurants = useMemo(() => {
     const set = new Set<string>();
@@ -179,22 +257,54 @@ export default function Page() {
     });
   }, [rows, q, restaurant, date]);
 
+  const selectedRow = useMemo(() => {
+    if (!selectedKey) return null;
+    return filtered.find((r, idx) => {
+      const key = String(r.reservation_id || r.id || idx);
+      return key === selectedKey;
+    });
+  }, [filtered, selectedKey]);
+
+  const hasActiveFilters = useMemo(() => {
+    return q.trim() !== "" || restaurant !== "all" || date.trim() !== "";
+  }, [q, restaurant, date]);
+
+  const headerText = useMemo(() => {
+    if (loading) return "Yükleniyor...";
+    if (filtered.length === 0) return hasActiveFilters ? "Sonuç yok" : "Kayıt yok";
+    return `Toplam: ${filtered.length}`;
+  }, [loading, filtered.length, hasActiveFilters]);
+
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Rezervasyon Kayıtları</h1>
-          <p className="text-white/60 text-sm">
-            Filtrele, ara ve gerekirse kara liste ile çapraz kontrol et.
-          </p>
+          <p className="text-white/60 text-sm">Filtrele, ara ve gerekirse kara liste ile çapraz kontrol et.</p>
         </div>
 
-        <button
-          onClick={() => location.reload()}
-          className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
-        >
-          Yenile
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              setQ("");
+              setRestaurant("all");
+              setDate("");
+            }}
+            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
+          >
+            Filtreyi temizle
+          </button>
+          <button
+            onClick={reload}
+            disabled={refreshing}
+            className={cx(
+              "rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10",
+              refreshing ? "opacity-60 cursor-not-allowed" : ""
+            )}
+          >
+            {refreshing ? "Yenileniyor..." : "Yenile"}
+          </button>
+        </div>
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -236,64 +346,151 @@ export default function Page() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-          <div className="text-sm text-white/70">
-            {loading ? "Yükleniyor..." : `Toplam: ${filtered.length}`}
+      <div className="grid lg:grid-cols-[1fr_360px] gap-4">
+        <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+            <div className="text-sm text-white/70">{headerText}</div>
+            {err ? <div className="text-sm text-red-300">{err}</div> : null}
           </div>
-          {err ? <div className="text-sm text-red-300">{err}</div> : null}
+
+          <div className="overflow-auto">
+            <table className="min-w-[1100px] w-full text-sm">
+              <thead className="bg-black/20 text-white/70 sticky top-0">
+                <tr>
+                  <th className="text-left px-4 py-3">Restoran</th>
+                  <th className="text-left px-4 py-3">Rez. No</th>
+                  <th className="text-left px-4 py-3">Masa</th>
+                  <th className="text-left px-4 py-3">Gün/Ay/Yıl</th>
+                  <th className="text-left px-4 py-3">Saat</th>
+                  <th className="text-left px-4 py-3">Müşteri</th>
+                  <th className="text-left px-4 py-3">Telefon</th>
+                  <th className="text-left px-4 py-3">Çocuk (7-)</th>
+                  <th className="text-left px-4 py-3">Yetkili</th>
+                  <th className="text-left px-4 py-3">Not</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-white/10">
+                {loading ? (
+                  <>
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <SkeletonRow key={i} />
+                    ))}
+                  </>
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td className="p-0" colSpan={10}>
+                      <EmptyState
+                        title={hasActiveFilters ? "Sonuç bulunamadı" : "Henüz kayıt yok"}
+                        desc={
+                          hasActiveFilters
+                            ? "Arama veya filtre kriterlerinizi değiştirin. Gerekirse filtreyi temizleyin."
+                            : "Rezervasyon oluşturulduğunda burada listelenecektir."
+                        }
+                      />
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((r, idx) => {
+                    const officer = s(r.officer_name) || s(r.officer_email) || "-";
+                    const kids = s(r.kids_u7) || "-";
+                    const key = String(r.reservation_id || r.id || idx);
+                    const isSelected = key === selectedKey;
+
+                    return (
+                      <tr
+                        key={key}
+                        onClick={() => setSelectedKey((prev) => (prev === key ? "" : key))}
+                        className={cx(
+                          "hover:bg-white/5 transition cursor-pointer",
+                          isSelected ? "bg-white/[0.06]" : ""
+                        )}
+                      >
+                        <td className="px-4 py-3">{s(r.restaurant) || "-"}</td>
+                        <td className="px-4 py-3">{s(r.reservation_no) || "-"}</td>
+                        <td className="px-4 py-3">{s(r.table_no) || "-"}</td>
+                        <td className="px-4 py-3">{normalizeDate(r.date) || "-"}</td>
+                        <td className="px-4 py-3">{normalizeTime(r.time) || "-"}</td>
+                        <td className="px-4 py-3">{s(r.customer_full_name) || "-"}</td>
+                        <td className="px-4 py-3">{s(r.customer_phone) || "-"}</td>
+                        <td className="px-4 py-3">{kids}</td>
+                        <td className="px-4 py-3">{officer}</td>
+                        <td className="px-4 py-3">{s(r.note) || "-"}</td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <div className="overflow-auto">
-          <table className="min-w-[1100px] w-full text-sm">
-            <thead className="bg-black/20 text-white/70">
-              <tr>
-                <th className="text-left px-4 py-3">Restoran</th>
-                <th className="text-left px-4 py-3">Rez. No</th>
-                <th className="text-left px-4 py-3">Masa</th>
-                <th className="text-left px-4 py-3">Gün/Ay/Yıl</th>
-                <th className="text-left px-4 py-3">Saat</th>
-                <th className="text-left px-4 py-3">Müşteri</th>
-                <th className="text-left px-4 py-3">Telefon</th>
-                <th className="text-left px-4 py-3">Çocuk (7-)</th>
-                <th className="text-left px-4 py-3">Yetkili</th>
-                <th className="text-left px-4 py-3">Not</th>
-              </tr>
-            </thead>
+        <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/10">
+            <div className="text-sm font-semibold text-white">Detay</div>
+            <div className="text-xs text-white/50 mt-1">Bir satıra tıklayarak detayları görüntüleyin.</div>
+          </div>
 
-            <tbody className="divide-y divide-white/10">
-              {filtered.map((r, idx) => {
-                const officer = s(r.officer_name) || s(r.officer_email) || "-";
-                const kids = s(r.kids_u7) || "-";
+          <div className="p-4">
+            {!selectedRow ? (
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                <div className="text-sm text-white/70 font-semibold">Seçim yok</div>
+                <div className="mt-1 text-sm text-white/60">
+                  Listeden bir rezervasyon seçin. Seçili satır vurgulanacaktır.
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="text-white font-semibold">{s(selectedRow.customer_full_name) || "-"}</div>
+                  <div className="text-white/55 text-sm mt-1">{s(selectedRow.customer_phone) || "-"}</div>
+                  <div className="text-white/35 text-xs mt-3">
+                    {s(selectedRow.restaurant) || "-"} • {s(selectedRow.reservation_no) || "-"}
+                  </div>
+                </div>
 
-                return (
-                  <tr
-                    key={String(r.reservation_id || r.id || idx)}
-                    className="hover:bg-white/5"
-                  >
-                    <td className="px-4 py-3">{s(r.restaurant) || "-"}</td>
-                    <td className="px-4 py-3">{s(r.reservation_no) || "-"}</td>
-                    <td className="px-4 py-3">{s(r.table_no) || "-"}</td>
-                    <td className="px-4 py-3">{normalizeDate(r.date) || "-"}</td>
-                    <td className="px-4 py-3">{normalizeTime(r.time) || "-"}</td>
-                    <td className="px-4 py-3">{s(r.customer_full_name) || "-"}</td>
-                    <td className="px-4 py-3">{s(r.customer_phone) || "-"}</td>
-                    <td className="px-4 py-3">{kids}</td>
-                    <td className="px-4 py-3">{officer}</td>
-                    <td className="px-4 py-3">{s(r.note) || "-"}</td>
-                  </tr>
-                );
-              })}
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <div className="text-xs text-white/60">Tarih</div>
+                    <div className="text-white/80 mt-1">{normalizeDate(selectedRow.date) || "-"}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-white/60">Saat</div>
+                    <div className="text-white/80 mt-1">{normalizeTime(selectedRow.time) || "-"}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-white/60">Masa</div>
+                    <div className="text-white/80 mt-1">{s(selectedRow.table_no) || "-"}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-white/60">Çocuk (7-)</div>
+                    <div className="text-white/80 mt-1">{s(selectedRow.kids_u7) || "-"}</div>
+                  </div>
+                </div>
 
-              {!loading && filtered.length === 0 ? (
-                <tr>
-                  <td className="px-4 py-10 text-center text-white/50" colSpan={10}>
-                    Sonuç bulunamadı.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="text-xs text-white/60">Yetkili</div>
+                  <div className="text-white/80 mt-1">
+                    {s(selectedRow.officer_name) || s(selectedRow.officer_email) || "-"}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="text-xs text-white/60">Not</div>
+                  <div className="text-white/80 mt-2 whitespace-pre-wrap">
+                    {s(selectedRow.note) || "-"}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setSelectedKey("")}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
+                >
+                  Seçimi kaldır
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
