@@ -99,7 +99,9 @@ function MsgBar({ msg }: { msg: string | null }) {
     <div
       className={cx(
         "rounded-xl border px-4 py-3 text-sm",
-        isErr ? "border-red-300/25 bg-red-500/10 text-red-100" : "border-emerald-300/25 bg-emerald-500/10 text-emerald-100"
+        isErr
+          ? "border-red-300/25 bg-red-500/10 text-red-100"
+          : "border-emerald-300/25 bg-emerald-500/10 text-emerald-100"
       )}
     >
       {msg}
@@ -181,14 +183,16 @@ export default function TaleplerPage() {
       if (!res.ok) throw new Error(data?.error || "Talepler alınamadı");
 
       const raw = Array.isArray(data.rows) ? data.rows : [];
-      const normalized = raw.map((x: any) => normalizeRow(x));
+      const normalized: ReqRow[] = raw.map((x: any) => normalizeRow(x));
 
       setRows(normalized);
 
       // seçili kayıt varsa güncellenmiş haliyle senkronla
       setSelected((prev) => {
         if (!prev?.request_id) return prev;
-        const newer = normalized.find((r) => r.request_id === prev.request_id);
+        const newer = normalized.find(
+          (r: ReqRow) => String(r.request_id ?? "") === String(prev.request_id ?? "")
+        );
         return newer || prev;
       });
     } catch (e: any) {
