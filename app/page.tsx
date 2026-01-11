@@ -1,5 +1,6 @@
 "use client";
 import type React from "react";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, type HTMLMotionProps } from "framer-motion";
@@ -116,12 +117,6 @@ function NavBar() {
               className="hover:text-white transition-all relative after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-0.5 after:bg-[#0ea5ff] after:transition-all hover:after:w-full"
             >
               Hakkımızda
-            </a>
-            <a 
-              href="#akıs" 
-              className="hover:text-white transition-all relative after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-0.5 after:bg-[#0ea5ff] after:transition-all hover:after:w-full"
-            >
-              Neler yapabiliriz
             </a>
           </div>
           <Link
@@ -342,6 +337,29 @@ function ScenarioRow({
   );
 }
 function ContactSection() {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setStatus("loading");
+    try {
+      // E-postayı backend'e gönder
+      const res = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) {
+        setStatus("success");
+        setEmail("");
+      } else {
+        setStatus("error");
+      }
+    } catch {
+      setStatus("error");
+    }
+  };
   return (
     <section id="iletisim" className="bg-[#0a1020]">
       <div className="mx-auto max-w-6xl px-6 py-20">
@@ -380,22 +398,68 @@ function ContactSection() {
                 Riskleri azaltın, verinizi koruyun
               </h3>
               <p className="mt-3 text-sm text-white/75 leading-relaxed">
-                Entegrasyonlardan geri kalmamak için güncellemelerden ve yeni akışlardan
-                haberdar olun.
+                Güncellemelerden ve yeni özelliklerden haberdar olmak için e-posta adresinizi bırakın.
               </p>
-              <div className="mt-7">
+              {/* E-posta Kayıt Formu */}
+              <form onSubmit={handleSubmit} className="mt-6">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="E-posta adresiniz"
+                    required
+                    className="flex-1 rounded-xl border border-white/15 bg-white/5 px-5 py-3.5 text-sm text-white placeholder:text-white/40 outline-none focus:border-[#0ea5ff]/50 focus:ring-2 focus:ring-[#0ea5ff]/20 transition-all"
+                  />
+                  <button
+                    type="submit"
+                    disabled={status === "loading"}
+                    className="rounded-xl bg-gradient-to-r from-[#0ea5ff] to-[#0891e6] px-7 py-3.5 text-sm font-bold text-white hover:from-[#36b6ff] hover:to-[#0ea5ff] transition-all shadow-[0_14px_40px_rgba(14,165,255,.3)] hover:shadow-[0_18px_50px_rgba(14,165,255,.4)] hover:scale-105 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {status === "loading" ? "Gönderiliyor..." : "Kayıt Ol"}
+                  </button>
+                </div>
+                {status === "success" && (
+                  <p className="mt-3 text-sm text-green-400">Başarıyla kaydoldunuz!</p>
+                )}
+                {status === "error" && (
+                  <p className="mt-3 text-sm text-red-400">Bir hata oluştu. Lütfen tekrar deneyin.</p>
+                )}
+              </form>
+              <div className="mt-6">
                 <a
                   href="mailto:info@opsstay.com?subject=Opsstay%20İletişim"
-                  className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#0ea5ff] to-[#0891e6] px-7 py-3.5 text-sm font-bold text-white hover:from-[#36b6ff] hover:to-[#0ea5ff] transition-all shadow-[0_14px_40px_rgba(14,165,255,.3)] hover:shadow-[0_18px_50px_rgba(14,165,255,.4)] hover:scale-105 active:scale-95"
+                  className="inline-flex items-center justify-center rounded-xl bg-white/5 border border-white/15 px-7 py-3.5 text-sm font-bold text-white hover:bg-white/10 transition-all"
                 >
-                  İletişime geç
+                  Doğrudan İletişime Geç
                 </a>
               </div>
             </div>
           </div>
-          <div className="mt-12 border-t border-white/10 pt-7 text-sm text-white/60 flex items-center justify-between flex-wrap gap-4">
-            <span>Tüm hakları saklıdır © 2026</span>
-            <span className="text-xs text-white/40">OpsStay - Müşteri Ön Kontrol &amp; Güvenli İşletme</span>
+          {/* Footer Links */}
+          <div className="mt-12 border-t border-white/10 pt-8">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+              {/* Sol: Copyright */}
+              <div className="text-sm text-white/60">
+                © 2026 OpsStay. Tüm hakları saklıdır.
+              </div>
+              {/* Orta: Linkler */}
+              <div className="flex items-center gap-6 text-sm">
+                <a href="#cozumler" className="text-white/60 hover:text-white transition">
+                  Çözümler
+                </a>
+                <a href="#hakkimizda" className="text-white/60 hover:text-white transition">
+                  Hakkımızda
+                </a>
+                <Link href="/gizlilik" className="text-white/60 hover:text-white transition">
+                  Gizlilik Politikası
+                </Link>
+              </div>
+              {/* Sağ: Slogan */}
+              <div className="text-xs text-white/40">
+                Müşteri Ön Kontrol &amp; Güvenli İşletme
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -453,10 +517,10 @@ export default function HomePage() {
                     OpsStay'i keşfedin
                   </a>
                   <a
-                    href="#akıs"
+                    href="#hakkimizda"
                     className="inline-flex items-center justify-center rounded-full bg-white/95 backdrop-blur-sm px-7 py-3 text-sm font-bold text-[#0b1326] hover:bg-white transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
                   >
-                    Çözüm detaylarını inceleyin
+                    Hakkımızda
                   </a>
                 </motion.div>
               </div>
