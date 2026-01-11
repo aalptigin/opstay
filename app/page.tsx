@@ -106,18 +106,18 @@ function NavBar() {
             </div>
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-white/70">
-            <a 
-              href="#cozumler" 
+            <Link
+              href="/cozumler"
               className="hover:text-white transition-all relative after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-0.5 after:bg-[#0ea5ff] after:transition-all hover:after:w-full"
             >
               Çözümler
-            </a>
-            <a 
-              href="#hakkimizda" 
+            </Link>
+            <Link
+              href="/hakkimizda"
               className="hover:text-white transition-all relative after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-0.5 after:bg-[#0ea5ff] after:transition-all hover:after:w-full"
             >
               Hakkımızda
-            </a>
+            </Link>
           </div>
           <Link
             href="/login"
@@ -146,7 +146,7 @@ function Trio() {
   return (
     <div className="mx-auto mt-12 max-w-6xl px-6">
       <div className="grid grid-cols-1 md:grid-cols-3 items-start gap-8">
-        <motion.div 
+        <motion.div
           className="md:mt-8"
           whileHover={{ y: -8, transition: { duration: 0.3 } }}
         >
@@ -175,7 +175,7 @@ function Trio() {
             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         </motion.div>
-        <motion.div 
+        <motion.div
           className="md:mt-8"
           whileHover={{ y: -8, transition: { duration: 0.3 } }}
         >
@@ -221,7 +221,7 @@ function InfoCards() {
           </p>
         </div>
         <div className="space-y-6">
-          <motion.div 
+          <motion.div
             className="rounded-2xl border border-[#d9eeff] bg-gradient-to-br from-white to-[#f7fbff] shadow-[0_10px_30px_rgba(10,16,32,.10)] hover:shadow-[0_15px_40px_rgba(10,16,32,.15)] p-6 transition-all"
             whileHover={{ y: -4, transition: { duration: 0.2 } }}
           >
@@ -241,7 +241,7 @@ function InfoCards() {
               </li>
             </ul>
           </motion.div>
-          <motion.div 
+          <motion.div
             className="rounded-2xl border border-[#d9eeff] bg-gradient-to-br from-white to-[#f7fbff] shadow-[0_10px_30px_rgba(10,16,32,.10)] hover:shadow-[0_15px_40px_rgba(10,16,32,.15)] p-6 transition-all"
             whileHover={{ y: -4, transition: { duration: 0.2 } }}
           >
@@ -288,7 +288,7 @@ function ScenarioRow({
   const showCaption = SHOW_SCENARIO_CAPTION && caption.trim().length > 0;
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[540px_1fr] gap-12 items-start">
-      <motion.div 
+      <motion.div
         className="relative overflow-hidden rounded-3xl border border-black/10 shadow-[0_25px_60px_rgba(10,16,32,.20)] hover:shadow-[0_30px_70px_rgba(10,16,32,.28)] transition-all group"
         whileHover={{ y: -6, transition: { duration: 0.3 } }}
       >
