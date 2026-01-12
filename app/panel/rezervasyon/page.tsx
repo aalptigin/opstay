@@ -402,14 +402,44 @@ export default function ReservationsPage() {
     return r.customer_phone || r.phone || "-";
   }
 
+  // ✅ Misafir sorgulama doluyken: aynı misafirin geçmiş rezervasyonlarını da çıkar
+  const guestHistoryRows = useMemo(() => {
+    const n = lookupName.trim().toLowerCase();
+    const p = normPhone(lookupPhone);
+
+    if (!n || !p) return [];
+
+    return (rows || [])
+      .filter((r) => {
+        const rn = String(r.customer_full_name || r.full_name || "").trim().toLowerCase();
+        const rp = normPhone(String(r.customer_phone || r.phone || ""));
+        // name + phone ikisi de eşleşsin (includes ile toleranslı)
+        return rn && rp && rn.includes(n) && rp.includes(p);
+      })
+      .sort((a, b) => {
+        // tarih desc, saat desc
+        const da = normalizeToISODate(viewDate(a));
+        const db = normalizeToISODate(viewDate(b));
+        if (da !== db) return String(db).localeCompare(String(da));
+        const ta = String(viewTime(a) || "");
+        const tb = String(viewTime(b) || "");
+        return tb.localeCompare(ta);
+      });
+  }, [rows, lookupName, lookupPhone]);
+
   const filteredRows = useMemo(() => {
     const n = tableFilterName.trim().toLowerCase();
     const p = normPhone(tableFilterPhone);
 
+    const hasAnyFilter = !!n || !!p;
     const today = todayISO();
 
-    return (rows || [])
+    const list = (rows || [])
       .filter((r) => {
+        // ✅ Misafir sorgulama/filtre kullanılıyorsa: tarih kısıtı kaldır (geçmiş rezervasyonlar da görünsün)
+        if (hasAnyFilter) return true;
+
+        // ✅ Filtre yoksa: sadece bugünün rezervasyonları
         const rd = normalizeToISODate(viewDate(r));
         return rd === today;
       })
@@ -419,12 +449,25 @@ export default function ReservationsPage() {
         const nameOk = !n || rn.includes(n);
         const phoneOk = !p || rp.includes(p);
         return nameOk && phoneOk;
-      })
-      .sort((a, b) => {
+      });
+
+    // ✅ Filtre varsa: tarih (desc) + saat (asc) ile sırala; yoksa mevcut davranış (saat asc)
+    if (hasAnyFilter) {
+      return list.sort((a, b) => {
+        const da = normalizeToISODate(viewDate(a));
+        const db = normalizeToISODate(viewDate(b));
+        if (da !== db) return String(db).localeCompare(String(da)); // yeni tarih üstte
         const ta = String(viewTime(a) || "");
         const tb = String(viewTime(b) || "");
         return ta.localeCompare(tb);
       });
+    }
+
+    return list.sort((a, b) => {
+      const ta = String(viewTime(a) || "");
+      const tb = String(viewTime(b) || "");
+      return ta.localeCompare(tb);
+    });
   }, [rows, tableFilterName, tableFilterPhone]);
 
   return (
@@ -536,7 +579,9 @@ export default function ReservationsPage() {
               </div>
             ) : null}
 
-            {lookupResult?.ok ? (
+            {lookupLoading ? (
+              <div className="text-xs text-white/45">Sorgulanıyor...</div>
+            ) : lookupResult?.ok ? (
               lookupResult.is_blacklisted ? (
                 <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
                   <div className="font-semibold">Uyarı: Bu misafir kara listede görünüyor.</div>
@@ -554,9 +599,69 @@ export default function ReservationsPage() {
               )
             ) : (
               <div className="text-xs text-white/45">
-                {lookupName.trim() && lookupPhone.trim() ? "Sonuç bekleniyor..." : "Sorgulamak için Ad Soyad ve Telefon girin."}
+                {lookupName.trim() && lookupPhone.trim()
+                  ? "Sonuç bekleniyor..."
+                  : "Sorgulamak için Ad Soyad ve Telefon girin."}
               </div>
             )}
+          </div>
+
+          {/* ✅ Önceki rezervasyonlar (Misafir sorgulama ile birlikte) */}
+          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+            <div className="px-4 py-3 flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold text-white">Önceki Rezervasyonlar</div>
+                <div className="text-[11px] text-white/50 mt-1">
+                  {lookupName.trim() && lookupPhone.trim()
+                    ? `Eşleşen kayıt: ${guestHistoryRows.length}`
+                    : "Görüntülemek için Ad Soyad ve Telefon girin."}
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-auto max-h-[260px] border-t border-white/10">
+              <table className="w-full text-sm">
+                <thead className="text-white/55">
+                  <tr className="border-b border-white/10">
+                    <th className="text-left px-4 py-2 whitespace-nowrap">Tarih</th>
+                    <th className="text-left px-4 py-2 whitespace-nowrap">Saat</th>
+                    <th className="text-left px-4 py-2 whitespace-nowrap">Restoran</th>
+                    <th className="text-left px-4 py-2 whitespace-nowrap">Rez. No</th>
+                    <th className="text-left px-4 py-2 whitespace-nowrap">Masa</th>
+                    <th className="text-left px-4 py-2 whitespace-nowrap">Not</th>
+                  </tr>
+                </thead>
+
+                <tbody className="text-white/85">
+                  {lookupName.trim() && lookupPhone.trim() ? (
+                    guestHistoryRows.length ? (
+                      guestHistoryRows.map((r, idx) => (
+                        <tr key={(r.reservation_id || "") + "h" + idx} className="border-b border-white/10 hover:bg-white/5">
+                          <td className="px-4 py-2 text-white/70 whitespace-nowrap">{formatTRDate(viewDate(r))}</td>
+                          <td className="px-4 py-2 text-white/70 whitespace-nowrap">{formatTRTime(viewTime(r))}</td>
+                          <td className="px-4 py-2 text-white/70 whitespace-nowrap">{r.restaurant || "-"}</td>
+                          <td className="px-4 py-2 whitespace-nowrap">{r.reservation_no || "-"}</td>
+                          <td className="px-4 py-2 text-white/70 whitespace-nowrap">{r.table_no || "-"}</td>
+                          <td className="px-4 py-2 text-white/70 min-w-[220px]">{r.note || "-"}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td className="px-4 py-4 text-white/55" colSpan={6}>
+                          Bu misafir için geçmiş rezervasyon bulunamadı.
+                        </td>
+                      </tr>
+                    )
+                  ) : (
+                    <tr>
+                      <td className="px-4 py-4 text-white/55" colSpan={6}>
+                        Ad Soyad ve Telefon girilince geçmiş rezervasyonlar listelenir.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 

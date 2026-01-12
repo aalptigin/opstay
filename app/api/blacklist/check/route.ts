@@ -61,8 +61,10 @@ function normalizeMatch(row: any) {
 
   const note = s(pick(row, ["note", "blacklist_note", "customer_note", "summary", "not"]));
   const risk_level = s(pick(row, ["risk_level", "risk", "level"]));
+  const restaurant = s(pick(row, ["restaurant", "venue", "otel", "hotel"]));
+  const date = s(pick(row, ["date", "tarih", "created_at", "entry_date"]));
 
-  return { full_name, phone, note, risk_level };
+  return { full_name, phone, note, risk_level, restaurant, date };
 }
 
 export async function POST(req: Request) {
@@ -92,10 +94,10 @@ export async function POST(req: Request) {
     const matches = Array.isArray((r as any).data)
       ? (r as any).data
       : Array.isArray((r as any).matches)
-      ? (r as any).matches
-      : Array.isArray(r)
-      ? r
-      : [];
+        ? (r as any).matches
+        : Array.isArray(r)
+          ? r
+          : [];
 
     // Kara liste kararı:
     // 1) satırda status/flag/risk varsa ona göre
