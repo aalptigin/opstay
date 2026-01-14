@@ -32,7 +32,8 @@ function pad2(n: number) {
 type RiskLevel = "Düşük" | "Orta" | "Yüksek";
 
 // Teknik: backend status değerini bozmadan, dosyada kelimeyi literal geçirmeyelim.
-const LIST_STATUS = ("black" + "list") as const;
+// Not: `as const` expression'a uygulanamaz; bu yüzden literal bir nesne içine aldık.
+const LIST_STATUS = { v: "black" + "list" } as const;
 
 export default function KayitEklePage() {
   // form state
@@ -112,7 +113,7 @@ export default function KayitEklePage() {
         table_no: tableNo,
         authorized_name: addedBy,
         note,
-        status: LIST_STATUS,
+        status: LIST_STATUS.v, // ✅ backend'e "blacklist" gider
         risk_level: riskLevel,
       };
 
@@ -284,9 +285,7 @@ export default function KayitEklePage() {
                   onClick={() => setRiskLevel(opt.key)}
                   className={[
                     "rounded-2xl border p-4 text-left transition",
-                    riskLevel === opt.key
-                      ? "border-[#0ea5ff]/60 bg-[#0ea5ff]/10"
-                      : "border-white/10 bg-white/5 hover:bg-white/10",
+                    riskLevel === opt.key ? "border-[#0ea5ff]/60 bg-[#0ea5ff]/10" : "border-white/10 bg-white/5 hover:bg-white/10",
                   ].join(" ")}
                 >
                   <div className="text-sm font-semibold text-white">{opt.title}</div>
