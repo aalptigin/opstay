@@ -67,19 +67,16 @@ export default function SideNav() {
         title: "Rezervasyon",
         items: [
           { label: "Rezervasyon Oluştur", href: "/panel/rezervasyon" },
-          // NOT: Bu sayfa yoksa (ileride) oluşturabiliriz.
           { label: "Rezervasyon Düzenle", href: "/panel/rezervasyon/duzenle" },
           { label: "Rezervasyon Kayıtları", href: "/panel/rezervasyon/kayitlar" },
         ],
       },
       {
-        id: "kara-liste",
-        title: "Kara Liste",
+        id: "uyari-listesi",
+        title: "Uyarı Listesi",
         items: [
-          // Mevcutta kara liste ekleme / kayıt ekle ekranınız ayrıysa burayı ona bağlayın.
-          { label: "Kara Liste'ye Aktar", href: "/panel/kayit/ekle" },
+          { label: "Uyarı Listesine Aktar", href: "/panel/kayit/ekle" },
           { label: "Kayıtlar", href: "/panel/kayit/kayitlar" },
-          // Talepler sadece manager görsün:
           { label: "Talepler", href: "/panel/talepler", roles: ["manager"] },
         ],
       },
@@ -106,7 +103,6 @@ export default function SideNav() {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    // pathname değişince aktif grup açık kalsın
     setOpenGroups((prev) => ({ ...defaultOpen, ...prev }));
   }, [defaultOpen]);
 
@@ -117,28 +113,93 @@ export default function SideNav() {
   const role = me?.user.role;
 
   return (
-    <aside className="w-[280px] shrink-0 border-r border-white/10 bg-[#070b16]">
+    <aside
+      className={cx(
+        "w-[280px] shrink-0 border-r border-white/10",
+        "bg-gradient-to-b from-[#070b16] via-black/[0.35] to-[#020617]/70",
+        "backdrop-blur-xl"
+      )}
+      style={{
+        boxShadow:
+          "inset -1px 0 0 rgba(255,255,255,0.06), 0 20px 60px rgba(0,0,0,0.35)",
+      }}
+    >
+      <style jsx global>{`
+        .vip-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(56, 189, 248, 0.45) rgba(255, 255, 255, 0.06);
+        }
+        .vip-scroll::-webkit-scrollbar {
+          width: 10px;
+        }
+        .vip-scroll::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.06);
+          border-radius: 999px;
+        }
+        .vip-scroll::-webkit-scrollbar-thumb {
+          background: linear-gradient(
+            180deg,
+            rgba(56, 189, 248, 0.65),
+            rgba(14, 165, 255, 0.35)
+          );
+          border-radius: 999px;
+          border: 2px solid rgba(2, 6, 23, 0.65);
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+        }
+        .vip-scroll::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(
+            180deg,
+            rgba(56, 189, 248, 0.8),
+            rgba(14, 165, 255, 0.5)
+          );
+        }
+      `}</style>
+
       <div className="p-4">
-        <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
-          <div className="text-sm font-semibold tracking-wide">OPSSTAY PANEL</div>
-          <div className="mt-1 text-xs text-white/60">Misafir ön kontrol alanı</div>
+        <div
+          className={cx(
+            "rounded-2xl border border-white/10",
+            "bg-gradient-to-b from-white/[0.08] to-white/[0.03]",
+            "backdrop-blur-md px-3 py-3 relative overflow-hidden"
+          )}
+          style={{
+            boxShadow:
+              "inset 0 0 0 1px rgba(255,255,255,0.06), 0 10px 30px rgba(0,0,0,0.25)",
+          }}
+        >
+          <div className="absolute inset-0 opacity-80 bg-[radial-gradient(80%_120%_at_25%_0%,rgba(56,189,248,0.18),transparent_55%)]" />
+          <div className="relative">
+            <div className="text-sm font-semibold tracking-wide">OPSSTAY PANEL</div>
+            <div className="mt-1 text-xs text-white/60">Misafir ön kontrol alanı</div>
+          </div>
         </div>
 
-        <nav className="mt-4 space-y-2">
+        <nav className="mt-4 space-y-2 vip-scroll max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
           {groups.map((g) => {
             const isOpen = !!openGroups[g.id];
             return (
-              <div key={g.id} className="rounded-2xl border border-white/10 bg-white/5">
+              <div
+                key={g.id}
+                className={cx(
+                  "rounded-2xl border border-white/10 overflow-hidden",
+                  "bg-gradient-to-b from-white/[0.06] to-black/[0.35]",
+                  "backdrop-blur-md"
+                )}
+                style={{
+                  boxShadow:
+                    "inset 0 0 0 1px rgba(255,255,255,0.05), 0 10px 30px rgba(0,0,0,0.22)",
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => toggleGroup(g.id)}
                   className={cx(
-                    "w-full rounded-2xl px-3 py-2 text-left text-sm font-semibold transition",
-                    "hover:bg-white/5"
+                    "w-full px-3 py-2 text-left text-sm font-semibold transition",
+                    "hover:bg-white/[0.04]"
                   )}
                 >
                   <div className="flex items-center justify-between">
-                    <span>{g.title}</span>
+                    <span className="text-white/85">{g.title}</span>
                     <span className={cx("text-white/60 transition", isOpen && "rotate-180")}>▾</span>
                   </div>
                 </button>
@@ -162,13 +223,25 @@ export default function SideNav() {
                                 key={it.href}
                                 href={it.href}
                                 className={cx(
-                                  "block rounded-xl px-3 py-2 text-sm transition border",
+                                  "block rounded-xl px-3 py-2 text-sm transition border relative overflow-hidden",
+                                  "focus:outline-none focus:ring-2 focus:ring-[#38bdf8]/25",
                                   active
-                                    ? "bg-[#0ea5e9]/15 border-[#0ea5e9]/30 text-white"
+                                    ? "text-[#020617] font-semibold border-white/20 bg-gradient-to-r from-[#0ea5ff] to-[#22d3ee]"
                                     : "border-transparent text-white/80 hover:bg-white/5 hover:text-white"
                                 )}
+                                style={
+                                  active
+                                    ? {
+                                        boxShadow:
+                                          "0 10px 30px rgba(14,165,255,0.16), inset 0 0 0 1px rgba(255,255,255,0.12)",
+                                      }
+                                    : undefined
+                                }
                               >
-                                {it.label}
+                                {active ? (
+                                  <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_120%_at_30%_0%,rgba(255,255,255,0.18),transparent_60%)]" />
+                                ) : null}
+                                <span className="relative">{it.label}</span>
                               </Link>
                             );
                           })}
@@ -181,7 +254,17 @@ export default function SideNav() {
           })}
         </nav>
 
-        <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3">
+        <div
+          className={cx(
+            "mt-4 rounded-2xl border border-white/10",
+            "bg-gradient-to-b from-white/[0.06] to-black/[0.30]",
+            "backdrop-blur-md p-3"
+          )}
+          style={{
+            boxShadow:
+              "inset 0 0 0 1px rgba(255,255,255,0.05), 0 10px 30px rgba(0,0,0,0.22)",
+          }}
+        >
           <div className="text-xs text-white/60">
             {me?.user?.role ? (
               <>
@@ -198,7 +281,15 @@ export default function SideNav() {
           <form action="/api/auth/logout" method="post" className="mt-3">
             <button
               type="submit"
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80 hover:bg-white/10"
+              className={cx(
+                "w-full rounded-xl border px-3 py-2 text-sm transition",
+                "border-white/15 bg-gradient-to-b from-white/[0.08] to-white/[0.03]",
+                "text-white/85 hover:from-white/[0.12] hover:to-white/[0.05]"
+              )}
+              style={{
+                boxShadow:
+                  "inset 0 0 0 1px rgba(255,255,255,0.06), 0 10px 30px rgba(0,0,0,0.20)",
+              }}
             >
               Çıkış yap
             </button>

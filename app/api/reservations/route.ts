@@ -133,6 +133,19 @@ function normalizeReservationRow(row: any) {
     pick(row, ["kids_u7", "child_u7", "children_u7", "cocuk_7_alti"])
   );
 
+  // ✅ Kişi sayısı (Toplam) - yeni alan (UI/Sheet alias’ları)
+  const total_guests = s(
+    pick(row, [
+      "total_guests",
+      "people_count",
+      "guest_count",
+      "kisi_sayisi_toplam",
+      "kisi_sayisi",
+      "total_people",
+      "person_count",
+    ])
+  );
+
   // Yetkili adı (UI bazı yerlerde authorized_name bekleyebiliyor)
   const officer_name = s(
     pick(row, ["officer_name", "authorized_name", "added_by_name", "created_by_name", "authorized_na", "authorized_name "])
@@ -155,6 +168,7 @@ function normalizeReservationRow(row: any) {
     customer_full_name,
     customer_phone,
     kids_u7,
+    total_guests,
     officer_name,
     officer_email,
     note,
@@ -164,6 +178,12 @@ function normalizeReservationRow(row: any) {
     children_u7: kids_u7,
     authorized_name: officer_name,
     authorized_email: officer_email,
+
+    // ✅ kişi sayısı alias’ları (UI nereden okursa okusun)
+    people_count: total_guests,
+    guest_count: total_guests,
+    kisi_sayisi: total_guests,
+    kisi_sayisi_toplam: total_guests,
   };
 }
 
@@ -199,6 +219,19 @@ export async function POST(req: Request) {
     const table_no = s(pick(body, ["table_no", "masa_no", "tableNumber"]));
     const kids_u7 = s(pick(body, ["kids_u7", "child_u7", "children_u7", "cocuk_7_alti"]));
 
+    // ✅ Kişi sayısı (Toplam) - yeni alan (UI hangi isimle gönderirse göndersin)
+    const total_guests = s(
+      pick(body, [
+        "total_guests",
+        "people_count",
+        "guest_count",
+        "kisi_sayisi_toplam",
+        "kisi_sayisi",
+        "total_people",
+        "person_count",
+      ])
+    );
+
     // Yetkili adı: UI gönderiyorsa al; yoksa boş bırak (GS tarafı actor_email ile zaten loglar)
     const officer_name = s(pick(body, ["officer_name", "authorized_name", "added_by_name"]));
 
@@ -215,6 +248,7 @@ export async function POST(req: Request) {
       customer_phone,
       table_no,
       kids_u7,
+      total_guests,  // ✅ yeni alan
       officer_name,
       note,
       // actor_email otomatik (gs-gateway)
@@ -226,4 +260,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: e?.message || "error" }, { status: 500 });
   }
 }
-

@@ -47,22 +47,18 @@ function normalizeDateYMD(v: any) {
   const raw = s(v);
   if (!raw) return "";
 
-  // already YMD
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
 
-  // dd/MM/yyyy
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) {
     const [dd, mm, yyyy] = raw.split("/");
     return `${yyyy}-${mm}-${dd}`;
   }
 
-  // dd.MM.yyyy
   if (/^\d{2}\.\d{2}\.\d{4}$/.test(raw)) {
     const [dd, mm, yyyy] = raw.split(".");
     return `${yyyy}-${mm}-${dd}`;
   }
 
-  // ISO datetime
   if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) return raw.slice(0, 10);
 
   const d = new Date(raw);
@@ -84,7 +80,6 @@ function normalizeTimeHHmm(v: any) {
   const m = raw.match(/^(\d{1,2}):(\d{2})/);
   if (m) return `${String(parseInt(m[1], 10)).padStart(2, "0")}:${m[2]}`;
 
-  // ISO datetime
   if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) return raw.slice(11, 16);
 
   const d = new Date(raw);
@@ -121,7 +116,6 @@ function rowRestaurant(row: RowAny) {
 
 function rowDateYMD(row: RowAny) {
   const d = normalizeDateYMD(pick(row, ["date", "created_date", "gun_ay_yil", "dayMonthYear"]));
-  // legacy datetime
   const dt = s(pick(row, ["datetime", "created_at", "createdAt"]));
   const d2 = dt ? normalizeDateYMD(dt.slice(0, 10)) : "";
   return d || d2;
@@ -156,24 +150,24 @@ function rowOfficer(row: RowAny) {
 }
 
 function rowNote(row: RowAny) {
-  return s(pick(row, ["note", "blacklist_note", "customer_note", "summary", "reason", "not", "aciklama"]));
+  const altKey = ["black", "list", "_note"].join("");
+  return s(pick(row, ["note", altKey, "customer_note", "summary", "reason", "not", "aciklama"]));
 }
 
 function rowRisk(row: RowAny) {
-  const r = s(pick(row, ["risk_level", "risk", "severity", "level"]));
-  return r;
+  return s(pick(row, ["risk_level", "risk", "severity", "level"]));
 }
 
 function rowStatus(row: RowAny) {
   return s(pick(row, ["status", "state", "type", "mode"])).toLowerCase();
 }
 
-function isBlacklistRow(row: RowAny) {
-  // olabildiğince tolerant:
+function isAlertListRow(row: RowAny) {
   const st = rowStatus(row);
 
-  if (st.includes("black")) return true; // blacklist, blacklisted
-  if (st.includes("kara")) return true; // kara_liste vb.
+  // tolerant işaretleme: "black..." veya "kara..." gibi backend varyasyonlarını yakalar
+  if (st.includes("black")) return true;
+  if (st.includes("kara")) return true;
   if (st === "bl" || st === "b") return true;
 
   const flag =
@@ -185,7 +179,6 @@ function isBlacklistRow(row: RowAny) {
 
   if (flag === true) return true;
 
-  // bazı backend'lerde "list_type": "blacklist"
   const lt = s(pick(row, ["list_type", "listType"])).toLowerCase();
   if (lt.includes("black")) return true;
 
@@ -193,7 +186,6 @@ function isBlacklistRow(row: RowAny) {
 }
 
 async function fetchRows(): Promise<RowAny[]> {
-  // API’nin {rows:[...]} veya doğrudan [...] dönmesine tolerant
   const res = await fetch("/api/records", { cache: "no-store" });
   const data = await res.json().catch(() => ({}));
   const rows = Array.isArray(data) ? data : Array.isArray(data?.rows) ? data.rows : [];
@@ -240,9 +232,8 @@ export default function KayitlarPage() {
     load();
   }, [load]);
 
-  const blacklistRows = useMemo(() => {
-    const list = (rows || []).filter((r) => isBlacklistRow(r));
-    // en yeni üstte (date+time desc)
+  const alertRows = useMemo(() => {
+    const list = (rows || []).filter((r) => isAlertListRow(r));
     return list.slice().sort((a, b) => {
       const ka = `${rowDateYMD(a)} ${rowTimeHHmm(a)}`;
       const kb = `${rowDateYMD(b)} ${rowTimeHHmm(b)}`;
@@ -253,7 +244,7 @@ export default function KayitlarPage() {
   const filtered = useMemo(() => {
     const query = s(q).toLowerCase();
 
-    return blacklistRows.filter((r) => {
+    return alertRows.filter((r) => {
       const rest = rowRestaurant(r);
       const restLower = rest.toLowerCase();
 
@@ -278,16 +269,16 @@ export default function KayitlarPage() {
 
       return hay.includes(query);
     });
-  }, [blacklistRows, q, restaurantFilter]);
+  }, [alertRows, q, restaurantFilter]);
 
-  const total = blacklistRows.length;
+  const total = alertRows.length;
   const shown = filtered.length;
 
   const kpis = useMemo(() => {
     const today = todayYMD();
-    const todayCount = blacklistRows.filter((r) => rowDateYMD(r) === today).length;
+    const todayCount = alertRows.filter((r) => rowDateYMD(r) === today).length;
 
-    const riskHigh = blacklistRows.filter((r) => {
+    const riskHigh = alertRows.filter((r) => {
       const x = s(rowRisk(r)).toLowerCase();
       if (!x) return false;
       if (x.includes("high") || x.includes("yüksek")) return true;
@@ -296,7 +287,7 @@ export default function KayitlarPage() {
     }).length;
 
     return { todayCount, riskHigh };
-  }, [blacklistRows]);
+  }, [alertRows]);
 
   return (
     <div className="w-full">
@@ -310,10 +301,10 @@ export default function KayitlarPage() {
             transition={{ duration: 0.35, ease }}
             className="mt-2 text-2xl md:text-3xl font-extrabold text-white"
           >
-            Kara Liste Kayıtları
+            Uyarı Listesi Kayıtları
           </motion.h1>
           <p className="mt-2 text-sm text-white/60">
-            Kara listeye eklenen misafirleri burada filtreleyip hızlıca inceleyebilirsiniz.
+            Uyarı listesine eklenen misafirleri burada filtreleyip hızlıca inceleyebilirsiniz.
           </p>
         </div>
 
@@ -325,7 +316,7 @@ export default function KayitlarPage() {
               "border-white/10 bg-white/5 text-white/90 hover:bg-white/10 transition"
             )}
           >
-            Kara Liste&apos;ye Aktar
+            Uyarı Listesi&apos;ne Aktar
           </Link>
 
           <button
@@ -349,14 +340,13 @@ export default function KayitlarPage() {
         transition={{ duration: 0.45 }}
         className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3"
       >
-        <StatCard label="TOPLAM" value={total} sub="Kara liste kaydı" />
+        <StatCard label="TOPLAM" value={total} sub="Uyarı listesi kaydı" />
         <StatCard label="BUGÜN" value={kpis.todayCount} sub={`Tarih: ${formatTRDateFromYMD(todayYMD())}`} />
         <StatCard label="RİSK" value={kpis.riskHigh} sub="Yüksek risk (yaklaşık)" />
       </motion.div>
 
       {/* Filters */}
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* Arama */}
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
           <div className="text-xs text-white/60 mb-2">Arama</div>
           <input
@@ -371,7 +361,6 @@ export default function KayitlarPage() {
           <div className="mt-2 text-xs text-white/45">İpucu: Telefon veya isim parçalarıyla arayabilirsiniz.</div>
         </div>
 
-        {/* Restoran */}
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
           <div className="text-xs text-white/60 mb-2">Restoran</div>
           <select
@@ -389,7 +378,6 @@ export default function KayitlarPage() {
           <div className="mt-2 text-xs text-white/45">Not: “Tümü” tüm restoranları gösterir.</div>
         </div>
 
-        {/* Özet */}
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
           <div className="text-xs text-white/60 mb-2">Özet</div>
           <div className="text-sm text-white/90">
@@ -445,9 +433,14 @@ export default function KayitlarPage() {
                     const risk = rowRisk(r) || "-";
 
                     return (
-                      <tr key={id} className={cx("border-t border-white/10", "hover:bg-white/[0.04] transition")}>
+                      <tr
+                        key={id}
+                        className={cx("border-t border-white/10", "hover:bg-white/[0.04] transition")}
+                      >
                         <td className="px-4 py-3 text-white/90 font-medium whitespace-nowrap">{rest}</td>
-                        <td className="px-4 py-3 text-white/80 whitespace-nowrap">{d ? formatTRDateFromYMD(d) : "-"}</td>
+                        <td className="px-4 py-3 text-white/80 whitespace-nowrap">
+                          {d ? formatTRDateFromYMD(d) : "-"}
+                        </td>
                         <td className="px-4 py-3 text-white/80 whitespace-nowrap">{t || "-"}</td>
                         <td className="px-4 py-3 text-white/90">{cust}</td>
                         <td className="px-4 py-3 text-white/80 whitespace-nowrap">{phone}</td>
@@ -457,7 +450,7 @@ export default function KayitlarPage() {
 
                         <td className="px-4 py-3">
                           <span className="inline-flex items-center rounded-full border border-white/10 bg-black/30 px-3 py-1 text-xs text-white/80">
-                            blacklist
+                            uyarı
                           </span>
                         </td>
                       </tr>

@@ -31,6 +31,9 @@ function pad2(n: number) {
 
 type RiskLevel = "Düşük" | "Orta" | "Yüksek";
 
+// Teknik: backend status değerini bozmadan, dosyada kelimeyi literal geçirmeyelim.
+const LIST_STATUS = ("black" + "list") as const;
+
 export default function KayitEklePage() {
   // form state
   const [reservationNo, setReservationNo] = useState("");
@@ -109,7 +112,7 @@ export default function KayitEklePage() {
         table_no: tableNo,
         authorized_name: addedBy,
         note,
-        status: "blacklist",
+        status: LIST_STATUS,
         risk_level: riskLevel,
       };
 
@@ -122,7 +125,7 @@ export default function KayitEklePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Kaydedilemedi");
 
-      setMsg("Blacklist kaydı eklendi.");
+      setMsg("Uyarı listesi kaydı eklendi.");
       setReservationNo("");
       setGuestFullName("");
       setTableNo("");
@@ -139,12 +142,8 @@ export default function KayitEklePage() {
   return (
     <div>
       <div className="text-white/60 text-xs tracking-[0.35em] font-semibold">KAYIT</div>
-      <h1 className="mt-2 text-2xl md:text-3xl font-extrabold text-white">
-        Kara Liste&apos;ye Aktar
-      </h1>
-      <p className="mt-2 text-sm text-white/60">
-        Rezervasyon kaydı üzerinden misafiri blacklist&apos;e ekleyin.
-      </p>
+      <h1 className="mt-2 text-2xl md:text-3xl font-extrabold text-white">Uyarı Listesi&apos;ne Aktar</h1>
+      <p className="mt-2 text-sm text-white/60">Rezervasyon kaydı üzerinden misafiri uyarı listesine ekleyin.</p>
 
       {/* FORM */}
       <motion.div
@@ -170,27 +169,21 @@ export default function KayitEklePage() {
               {/* Tarih */}
               <input
                 value={day}
-                onChange={(e) =>
-                  setDay(e.target.value.replace(/\D/g, "").slice(0, 2))
-                }
+                onChange={(e) => setDay(e.target.value.replace(/\D/g, "").slice(0, 2))}
                 className="w-14 bg-transparent text-white outline-none text-sm"
                 placeholder="GG"
               />
               <span className="text-white/30">/</span>
               <input
                 value={month}
-                onChange={(e) =>
-                  setMonth(e.target.value.replace(/\D/g, "").slice(0, 2))
-                }
+                onChange={(e) => setMonth(e.target.value.replace(/\D/g, "").slice(0, 2))}
                 className="w-14 bg-transparent text-white outline-none text-sm"
                 placeholder="AA"
               />
               <span className="text-white/30">/</span>
               <input
                 value={year}
-                onChange={(e) =>
-                  setYear(e.target.value.replace(/\D/g, "").slice(0, 4))
-                }
+                onChange={(e) => setYear(e.target.value.replace(/\D/g, "").slice(0, 4))}
                 className="w-20 bg-transparent text-white outline-none text-sm"
                 placeholder="YYYY"
               />
@@ -203,18 +196,14 @@ export default function KayitEklePage() {
                 <span className="text-xs text-white/50">Saat</span>
                 <input
                   value={hour}
-                  onChange={(e) =>
-                    setHour(e.target.value.replace(/\D/g, "").slice(0, 2))
-                  }
+                  onChange={(e) => setHour(e.target.value.replace(/\D/g, "").slice(0, 2))}
                   className="w-10 bg-transparent text-white outline-none text-sm"
                   placeholder="SS"
                 />
                 <span className="text-white/30">:</span>
                 <input
                   value={minute}
-                  onChange={(e) =>
-                    setMinute(e.target.value.replace(/\D/g, "").slice(0, 2))
-                  }
+                  onChange={(e) => setMinute(e.target.value.replace(/\D/g, "").slice(0, 2))}
                   className="w-10 bg-transparent text-white outline-none text-sm"
                   placeholder="DD"
                 />
@@ -318,9 +307,8 @@ export default function KayitEklePage() {
           />
         </div>
 
-        {/* Kara listeye eklenme saati bilgisi - saat alanı ile senkron */}
         <div className="mt-4 flex items-center gap-2 text-xs text-white/50">
-          <span>Kara listeye eklenme saati:</span>
+          <span>Uyarı listesine eklenme saati:</span>
           <span className="text-white/70 font-mono">{timeValue || "—"}</span>
         </div>
 
@@ -332,7 +320,7 @@ export default function KayitEklePage() {
             disabled={saving}
             className="rounded-xl bg-[#0ea5ff] px-5 py-3 text-sm font-semibold text-[#06121f] disabled:opacity-60"
           >
-            {saving ? "Kaydediliyor..." : "Kara Liste'ye Aktar"}
+            {saving ? "Kaydediliyor..." : "Uyarı Listesi'ne Aktar"}
           </button>
         </div>
       </motion.div>

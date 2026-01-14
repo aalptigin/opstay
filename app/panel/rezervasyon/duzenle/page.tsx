@@ -82,6 +82,8 @@ function validateForm(x: {
   time: string;
   customerFullName: string;
   customerPhone: string;
+  peopleCount: string;
+  kidsU7: string;
 }) {
   const errs: string[] = [];
   if (!s(x.restaurant)) errs.push("Restoran zorunludur.");
@@ -91,6 +93,12 @@ function validateForm(x: {
   if (!s(x.time)) errs.push("Saat zorunludur.");
   if (!s(x.customerFullName)) errs.push("Müşteri adı zorunludur.");
   if (!s(x.customerPhone)) errs.push("Telefon zorunludur.");
+
+  const pc = s(x.peopleCount);
+  if (pc && !/^\d+$/.test(pc)) errs.push("Kişi sayısı sadece rakam olmalıdır.");
+  const ku = s(x.kidsU7);
+  if (ku && !/^\d+$/.test(ku)) errs.push("Çocuk sayısı sadece rakam olmalıdır.");
+
   return errs;
 }
 
@@ -110,6 +118,8 @@ export default function Page() {
   const [time, setTime] = useState("");
   const [customerFullName, setCustomerFullName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [peopleCount, setPeopleCount] = useState(""); // ✅ kişi sayısı (toplam)
+  const [kidsU7, setKidsU7] = useState(""); // ✅ çocuk sayısı
   const [note, setNote] = useState("");
 
   const [saving, setSaving] = useState(false);
@@ -168,11 +178,12 @@ export default function Page() {
       setTime("");
       setCustomerFullName("");
       setCustomerPhone("");
+      setPeopleCount("");
+      setKidsU7("");
       setNote("");
       return;
     }
 
-    // GET normalizeReservationRow ile gelen alias'ları da destekle
     const rest = s(pick(selected, ["restaurant", "restaurant_name"]));
     const rz = s(pick(selected, ["reservation_no", "reservation_n0"]));
     const tb = s(pick(selected, ["table_no", "masa_no"]));
@@ -183,6 +194,20 @@ export default function Page() {
     const cn = s(pick(selected, ["customer_full_name", "full_name"]));
     const cp = s(pick(selected, ["customer_phone", "phone"]));
 
+    const pc = s(
+      pick(selected, [
+        "total_guests",
+        "people_count",
+        "guest_count",
+        "kisi_sayisi_toplam",
+        "kisi_sayisi",
+        "total_people",
+        "person_count",
+      ])
+    );
+
+    const ku = s(pick(selected, ["kids_u7", "child_u7", "children_u7", "cocuk_7_alti"]));
+
     const nt = s(pick(selected, ["note", "customer_note"]));
 
     setRestaurant(rest);
@@ -192,6 +217,8 @@ export default function Page() {
     setTime(t ? formatTRTime(t) : "");
     setCustomerFullName(cn);
     setCustomerPhone(normPhone(cp));
+    setPeopleCount(pc);
+    setKidsU7(ku);
     setNote(nt);
   }, [selected]);
 
@@ -239,6 +266,8 @@ export default function Page() {
       time,
       customerFullName,
       customerPhone,
+      peopleCount,
+      kidsU7,
     });
 
     if (errs.length) {
@@ -255,19 +284,26 @@ export default function Page() {
         body: JSON.stringify({
           reservation_id,
 
-          // API route normalize ediyor: restaurant / restaurant_name ikisini de alıyor
           restaurant,
           restaurant_name: restaurant,
 
           reservation_no: reservationNo,
           table_no: tableNo,
 
-          // API route normalize ediyor: date/time TR formatlarını Date() ile çözebiliyor
           date,
           time,
 
           customer_full_name: customerFullName,
           customer_phone: normPhone(customerPhone),
+
+          // ✅ kişi + çocuk sayısı
+          total_guests: s(peopleCount),
+          people_count: s(peopleCount),
+          guest_count: s(peopleCount),
+
+          kids_u7: s(kidsU7),
+          child_u7: s(kidsU7),
+          children_u7: s(kidsU7),
 
           note,
         }),
@@ -280,7 +316,6 @@ export default function Page() {
 
       setMsg("Kayıt güncellendi.");
 
-      // local state’i de güncelle
       setRows((prev) =>
         prev.map((r) => {
           const rid = s(pick(r, ["reservation_id", "resarvation_id"]));
@@ -298,13 +333,23 @@ export default function Page() {
             full_name: customerFullName,
             customer_phone: normPhone(customerPhone),
             phone: normPhone(customerPhone),
+
+            total_guests: s(peopleCount),
+            people_count: s(peopleCount),
+            guest_count: s(peopleCount),
+            kisi_sayisi: s(peopleCount),
+            kisi_sayisi_toplam: s(peopleCount),
+
+            kids_u7: s(kidsU7),
+            child_u7: s(kidsU7),
+            children_u7: s(kidsU7),
+
             note,
             customer_note: note,
           };
         })
       );
 
-      // seçili kaydı da güncel tut
       setSelected((prev) => {
         if (!prev) return prev;
         const rid = s(pick(prev, ["reservation_id", "resarvation_id"]));
@@ -321,6 +366,17 @@ export default function Page() {
           full_name: customerFullName,
           customer_phone: normPhone(customerPhone),
           phone: normPhone(customerPhone),
+
+          total_guests: s(peopleCount),
+          people_count: s(peopleCount),
+          guest_count: s(peopleCount),
+          kisi_sayisi: s(peopleCount),
+          kisi_sayisi_toplam: s(peopleCount),
+
+          kids_u7: s(kidsU7),
+          child_u7: s(kidsU7),
+          children_u7: s(kidsU7),
+
           note,
           customer_note: note,
         };
@@ -348,7 +404,6 @@ export default function Page() {
             onClick={() => {
               setSelected(null);
               setMsg("");
-              // UX: aramaya geri dön
               setTimeout(() => searchRef.current?.focus(), 0);
             }}
             className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
@@ -379,9 +434,7 @@ export default function Page() {
           placeholder="Rez. no / müşteri / telefon..."
           className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none focus:border-white/20"
         />
-        <div className="mt-2 text-xs text-white/45">
-          İpucu: Telefon, rezervasyon no veya müşteri adı ile arayabilirsiniz.
-        </div>
+        <div className="mt-2 text-xs text-white/45">İpucu: Telefon, rezervasyon no veya müşteri adı ile arayabilirsiniz.</div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
@@ -392,7 +445,8 @@ export default function Page() {
             {err ? <div className="text-sm text-red-300">{err}</div> : null}
           </div>
 
-          <div className="max-h-[520px] overflow-auto">
+          {/* ✅ Scroll var ama gizli */}
+          <div className="max-h-[520px] overflow-auto hide-scrollbar">
             {loading ? (
               <div className="p-4 space-y-2 animate-pulse">
                 {Array.from({ length: 8 }).map((_, i) => (
@@ -414,6 +468,19 @@ export default function Page() {
                 const t = s(pick(r, ["time", "saat"]));
                 const ph = s(pick(r, ["customer_phone", "phone"]));
 
+                const pc = s(
+                  pick(r, [
+                    "total_guests",
+                    "people_count",
+                    "guest_count",
+                    "kisi_sayisi_toplam",
+                    "kisi_sayisi",
+                    "total_people",
+                    "person_count",
+                  ])
+                );
+                const ku = s(pick(r, ["kids_u7", "child_u7", "children_u7", "cocuk_7_alti"]));
+
                 return (
                   <button
                     key={rowId}
@@ -426,6 +493,7 @@ export default function Page() {
                     <div className="text-sm">{label || "-"}</div>
                     <div className="text-xs text-white/50">
                       {formatTRDate(d) || "-"} • {formatTRTime(t) || "-"} • {ph ? normPhone(ph) : "-"}
+                      <span className="ml-2 text-white/35">• Kişi: {pc || "-"} • Çocuk: {ku || "-"}</span>
                     </div>
                   </button>
                 );
@@ -516,6 +584,29 @@ export default function Page() {
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-white/60">Kişi sayısı (Toplam)</label>
+                  <input
+                    value={peopleCount}
+                    onChange={(e) => setPeopleCount(e.target.value.replace(/[^\d]/g, ""))}
+                    inputMode="numeric"
+                    placeholder="0"
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none focus:border-white/20"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-white/60">7 yaş altı çocuk</label>
+                  <input
+                    value={kidsU7}
+                    onChange={(e) => setKidsU7(e.target.value.replace(/[^\d]/g, ""))}
+                    inputMode="numeric"
+                    placeholder="0"
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none focus:border-white/20"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="text-xs text-white/60">Not</label>
                 <textarea
@@ -572,6 +663,19 @@ export default function Page() {
           )}
         </div>
       </div>
+
+      {/* ✅ Scrollbar gizle (scroll çalışır) */}
+      <style jsx global>{`
+        .hide-scrollbar {
+          -ms-overflow-style: none; /* IE and Edge (legacy) */
+          scrollbar-width: none; /* Firefox */
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none; /* Chrome/Safari */
+          width: 0;
+          height: 0;
+        }
+      `}</style>
     </div>
   );
 }

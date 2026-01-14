@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 
@@ -23,6 +23,26 @@ function pick(obj: any, keys: string[]) {
   return "";
 }
 
+function normRestaurant(v: any) {
+  const raw = s(v);
+  const r = raw.toLowerCase().replace(/\s+/g, " ").trim();
+  if (!r) return "";
+
+  if (
+    r === "happy moons" ||
+    r === "happy_moons" ||
+    r === "happy-moons" ||
+    r === "happymoons" ||
+    r === "happy moon"
+  )
+    return "Happy Moons";
+
+  if (r === "roof" || r === "roof restaurant") return "Roof";
+
+  // bilinmeyen restoran adlarını da olduğu gibi döndür
+  return raw;
+}
+
 function todayYMD() {
   const now = new Date();
   const yyyy = String(now.getFullYear());
@@ -35,10 +55,8 @@ function normalizeDateYMD(v: any) {
   const raw = s(v);
   if (!raw) return "";
 
-  // already YMD
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
 
-  // dd/MM/yyyy or dd.MM.yyyy
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) {
     const [dd, mm, yyyy] = raw.split("/");
     return `${yyyy}-${mm}-${dd}`;
@@ -48,7 +66,6 @@ function normalizeDateYMD(v: any) {
     return `${yyyy}-${mm}-${dd}`;
   }
 
-  // ISO-ish -> Date
   const d = new Date(raw);
   if (!Number.isNaN(d.getTime())) {
     const yyyy = String(d.getFullYear());
@@ -79,14 +96,14 @@ function normalizeTimeHHmm(v: any) {
 }
 
 function formatTRDateFromYMD(ymd: string) {
-  // "YYYY-MM-DD" -> "DD.MM.YYYY"
   if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd || "-";
   const [yyyy, mm, dd] = ymd.split("-");
   return `${dd}.${mm}.${yyyy}`;
 }
 
 function normReservationRow(r: Row) {
-  const restaurant = s(pick(r, ["restaurant", "restaurant_name"]));
+  const restaurant = normRestaurant(pick(r, ["restaurant", "restaurant_name"]));
+
   const reservation_no = s(
     pick(r, ["reservation_no", "reservation_n0", "reservationNumber", "reservation_id", "rez_no"])
   );
@@ -95,7 +112,6 @@ function normReservationRow(r: Row) {
   const date = normalizeDateYMD(pick(r, ["date", "gun_ay_yil", "dayMonthYear"]));
   const time = normalizeTimeHHmm(pick(r, ["time", "saat"]));
 
-  // legacy datetime (ISO)
   const dt = s(pick(r, ["datetime"]));
   const dateFromDT = dt ? normalizeDateYMD(String(dt).slice(0, 10)) : "";
   const timeFromDT = dt ? normalizeTimeHHmm(String(dt).slice(11, 16)) : "";
@@ -159,9 +175,38 @@ function normRecordRow(r: Row) {
   const date = normalizeDateYMD(pick(r, ["date", "created_date", "gun_ay_yil"]));
   const time = normalizeTimeHHmm(pick(r, ["time", "created_time", "saat"]));
   const note = s(pick(r, ["note", "blacklist_note", "customer_note", "summary", "reason"]));
-  const restaurant_name = s(pick(r, ["restaurant_name", "restaurant"]));
-  return { ...r, record_id, full_name, phone, date, time, note, restaurant_name };
+  const restaurant_name = normRestaurant(pick(r, ["restaurant_name", "restaurant"]));
+  const risk_level = s(pick(r, ["risk_level", "risk", "severity", "level"]));
+  const authorized_name = s(pick(r, ["authorized_name", "officer_name", "created_by_name", "added_by_name", "actor_name"]));
+  const created_at = s(pick(r, ["created_at", "createdAt", "datetime"]));
+  const status = s(pick(r, ["status", "state", "type", "mode", "list_type", "listType"]));
+  return { ...r, record_id, full_name, phone, date, time, note, restaurant_name, risk_level, authorized_name, created_at, status };
 }
+
+function isWarningRow(r: any) {
+  const st = s(pick(r, ["status", "state", "type", "mode", "list_type", "listType"])).toLowerCase();
+  if (!st) {
+    const flag =
+      (r as any).is_blacklist ??
+      (r as any).isBlacklisted ??
+      (r as any).blacklist ??
+      (r as any).blacklisted ??
+      null;
+    return flag === true;
+  }
+  if (st.includes("black")) return true;
+  if (st.includes("kara")) return true;
+  if (st === "bl" || st === "b") return true;
+  return false;
+}
+
+function cx(...a: Array<string | false | undefined | null>) {
+  return a.filter(Boolean).join(" ");
+}
+
+const ease = [0.22, 1, 0.36, 1] as const;
+
+type CheckMode = "name" | "phone" | "both";
 
 export default function PanelPage() {
   const [me, setMe] = useState<Me | null>(null);
@@ -171,6 +216,9 @@ export default function PanelPage() {
   const [date, setDate] = useState<string>(todayYMD());
   const [q, setQ] = useState("");
 
+  // user selection guard for restaurant (fix: "Tümü" override)
+  const restaurantTouchedRef = useRef(false);
+
   // data
   const [rezRows, setRezRows] = useState<Row[]>([]);
   const [reqRows, setReqRows] = useState<any[]>([]);
@@ -179,7 +227,8 @@ export default function PanelPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
-  // quick guest check
+  // guest check
+  const [checkMode, setCheckMode] = useState<CheckMode>("both");
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [checking, setChecking] = useState(false);
@@ -247,20 +296,24 @@ export default function PanelPage() {
     };
   }, []);
 
-  // default restaurant selection from session (if exists)
+  // default restaurant selection from session (apply once; never override user choice)
   useEffect(() => {
-    const sessionRestaurant = s(me?.user?.restaurant_name);
+    if (restaurantTouchedRef.current) return;
+
+    const sessionRestaurant = normRestaurant(me?.user?.restaurant_name);
     if (!sessionRestaurant) return;
 
-    // If the user hasn't chosen anything yet and we still have "all",
-    // prefer session restaurant.
-    setRestaurant((prev) => (prev === "all" ? sessionRestaurant : prev));
+    setRestaurant((prev) => {
+      const prevRaw = s(prev).toLowerCase();
+      if (prev === "all" || prevRaw === "" || prevRaw === "tümü") return sessionRestaurant;
+      return prev;
+    });
   }, [me]);
 
   const restaurants = useMemo(() => {
     const set = new Set<string>();
     rezRows.forEach((r) => {
-      const x = s((r as any).restaurant);
+      const x = normRestaurant((r as any).restaurant);
       if (x) set.add(x);
     });
     return ["all", ...Array.from(set)];
@@ -270,14 +323,26 @@ export default function PanelPage() {
     const qq = q.trim().toLowerCase();
     const d = date.trim();
 
+    const isAll =
+      restaurant === "all" ||
+      s(restaurant) === "" ||
+      s(restaurant).toLowerCase() === "tümü";
+
+    const selRest = normRestaurant(restaurant);
+
     return rezRows
       .filter((r: any) => {
-        if (restaurant !== "all" && s(r.restaurant) !== restaurant) return false;
+        const rowRest = normRestaurant(r.restaurant);
+
+        if (!isAll) {
+          if (rowRest !== selRest) return false;
+        }
+
         if (d && s(r.date) !== d) return false;
         if (!qq) return true;
 
         const hay = [
-          r.restaurant,
+          rowRest,
           r.reservation_no,
           r.table_no,
           r.date,
@@ -301,17 +366,16 @@ export default function PanelPage() {
 
   const openRequests = useMemo(() => {
     const list = (reqRows || []).filter((r: any) => r.status === "open" || r.status === "in_review");
-    // newest first
     return list.slice().sort((a: any, b: any) => s(b.created_at).localeCompare(s(a.created_at)));
   }, [reqRows]);
 
-  const recentBlacklist = useMemo(() => {
-    const list = (recordRows || []).slice().sort((a: any, b: any) => {
+  const warningRows = useMemo(() => {
+    const list = (recordRows || []).filter((r: any) => isWarningRow(r));
+    return list.slice().sort((a: any, b: any) => {
       const ka = `${s(a.date)} ${s(a.time)}`;
       const kb = `${s(b.date)} ${s(b.time)}`;
       return kb.localeCompare(ka);
     });
-    return list;
   }, [recordRows]);
 
   const kpis = useMemo(() => {
@@ -329,10 +393,8 @@ export default function PanelPage() {
     });
     const repeatedPhones = Array.from(uniquePhones.values()).filter((n) => n >= 2).length;
 
-    // If we don't have a dedicated "check log", we approximate "risk" by:
-    // (a) quick check matches (if any), plus (b) today's reservations that match blacklist by phone
-    const blacklistPhones = new Set(recentBlacklist.map((x: any) => s(x.phone)).filter(Boolean));
-    const approxMatches = filteredReservations.filter((r: any) => blacklistPhones.has(s(r.customer_phone))).length;
+    const warningPhones = new Set(warningRows.map((x: any) => s(x.phone)).filter(Boolean));
+    const approxMatches = filteredReservations.filter((r: any) => warningPhones.has(s(r.customer_phone))).length;
 
     return {
       totalToday,
@@ -341,16 +403,7 @@ export default function PanelPage() {
       repeatedPhones,
       approxMatches,
     };
-  }, [filteredReservations, openRequests, recentBlacklist]);
-
-  // Quick check typing syncs into the list search (as requested)
-  useEffect(() => {
-    const name = s(guestName);
-    const phone = s(guestPhone);
-    if (!name && !phone) return;
-    setQ([name, phone].filter(Boolean).join(" ").trim());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [guestName, guestPhone]);
+  }, [filteredReservations, openRequests, warningRows]);
 
   async function runCheck() {
     const name = s(guestName);
@@ -361,27 +414,64 @@ export default function PanelPage() {
     setCheckMatches([]);
 
     try {
-      if (!name && !phone) throw new Error("Sorgulama için Ad Soyad veya Telefon girin.");
+      // mode validation
+      if (checkMode === "name" && !name) throw new Error("missing criteria");
+      if (checkMode === "phone" && !phone) throw new Error("missing criteria");
+      if (checkMode === "both" && (!name || !phone)) throw new Error("missing criteria");
+
+      const payload: any = {};
+      if (checkMode === "name") payload.full_name = name;
+      if (checkMode === "phone") payload.phone = phone;
+      if (checkMode === "both") {
+        payload.full_name = name;
+        payload.phone = phone;
+      }
 
       const res = await fetch("/api/records/check", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ full_name: name, phone }),
+        body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Sorgulama başarısız.");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        // API farklı kriter bekliyorsa (veya hata dönerse) local fallback
+        throw new Error(data?.error || "Sorgulama başarısız.");
+      }
 
       const matches = Array.isArray(data?.matches) ? data.matches : [];
-      setCheckMatches(matches);
+      const normalized = matches.map((m: any) => normRecordRow(m));
 
-      if (matches.length > 0) {
-        setCheckMsg(`Uyarı: Kara listede ${matches.length} eşleşme bulundu.`);
+      // Ek güvenlik: API bazı durumlarda boş dönerse local listeden de eşleştir (özellikle isim-only/telefon-only için)
+      const localFallback = (() => {
+        const n = name.toLowerCase();
+        const p = phone.replace(/\s+/g, "");
+        const list = warningRows;
+
+        const okName = (x: any) => (s(x.full_name).toLowerCase().includes(n) || n.includes(s(x.full_name).toLowerCase()));
+        const okPhone = (x: any) => s(x.phone).replace(/\s+/g, "").includes(p);
+
+        if (checkMode === "name") return list.filter(okName);
+        if (checkMode === "phone") return list.filter(okPhone);
+        return list.filter((x: any) => okName(x) && okPhone(x));
+      })();
+
+      const finalMatches = normalized.length > 0 ? normalized : localFallback;
+
+      setCheckMatches(finalMatches);
+
+      if (finalMatches.length > 0) {
+        setCheckMsg(`Uyarı: Uyarı listesinde ${finalMatches.length} eşleşme bulundu.`);
       } else {
         setCheckMsg("Eşleşme bulunamadı.");
       }
     } catch (e: any) {
-      setCheckMsg(e?.message || "Hata");
+      const m = s(e?.message || "");
+      if (m.toLowerCase().includes("missing criteria") || m === "missing criteria") {
+        setCheckMsg("missing criteria");
+      } else {
+        setCheckMsg(m || "Hata");
+      }
     } finally {
       setChecking(false);
     }
@@ -392,7 +482,14 @@ export default function PanelPage() {
     setGuestPhone("");
     setCheckMsg(null);
     setCheckMatches([]);
+    setCheckMode("both");
   }
+
+  const checkHint = useMemo(() => {
+    if (checkMode === "name") return "Ad Soyad ile sorgu";
+    if (checkMode === "phone") return "Telefon ile sorgu";
+    return "Ad Soyad + Telefon ile sorgu";
+  }, [checkMode]);
 
   return (
     <div className="min-h-[calc(100vh-80px)]">
@@ -401,9 +498,7 @@ export default function PanelPage() {
         <div>
           <div className="text-white/60 text-xs tracking-[0.35em] font-semibold">OPSSTAY</div>
           <h1 className="mt-2 text-2xl md:text-3xl font-extrabold text-white">Operasyon Kontrol Merkezi</h1>
-          <p className="mt-2 text-sm text-white/60">
-            Seçili restoran ve tarih için rezervasyonlar, talepler ve kara liste uyarıları.
-          </p>
+          <p className="mt-2 text-sm text-white/60">Seçili restoran ve tarih için rezervasyonlar, talepler ve uyarı listesi uyarıları.</p>
         </div>
 
         {/* Filters */}
@@ -412,8 +507,11 @@ export default function PanelPage() {
             <label className="text-xs text-white/60">Restoran</label>
             <select
               value={restaurant}
-              onChange={(e) => setRestaurant(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-white/10 bg-[#0b1220] px-4 py-3 text-sm text-white outline-none appearance-none"
+              onChange={(e) => {
+                restaurantTouchedRef.current = true;
+                setRestaurant(e.target.value);
+              }}
+              className="mt-1 w-full rounded-xl border border-white/10 bg-[#0b1220] px-4 py-3 text-sm text-white outline-none appearance-none shadow-[0_12px_45px_rgba(0,0,0,.28)]"
             >
               {restaurants.map((x) => (
                 <option key={x} value={x} className="bg-[#0b1220] text-white">
@@ -429,7 +527,7 @@ export default function PanelPage() {
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
+              className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35 shadow-[0_12px_45px_rgba(0,0,0,.20)]"
             />
           </div>
 
@@ -439,7 +537,7 @@ export default function PanelPage() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Ara: isim, telefon, rez no…"
-              className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
+              className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:ring-2 focus:ring-[#0ea5ff]/35 shadow-[0_12px_45px_rgba(0,0,0,.20)]"
             />
           </div>
         </div>
@@ -447,9 +545,7 @@ export default function PanelPage() {
 
       {/* STATUS / ERROR */}
       {err ? (
-        <div className="mt-5 rounded-2xl border border-red-300/25 bg-red-500/10 px-5 py-4 text-sm text-red-100">
-          {err}
-        </div>
+        <div className="mt-5 rounded-2xl border border-red-300/25 bg-red-500/10 px-5 py-4 text-sm text-red-100">{err}</div>
       ) : null}
 
       {/* KPI CARDS */}
@@ -459,7 +555,7 @@ export default function PanelPage() {
         transition={{ duration: 0.45 }}
         className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4"
       >
-        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5">
+        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5 shadow-[0_30px_90px_rgba(0,0,0,.32)]">
           <div className="text-xs text-white/55 tracking-[0.18em] font-semibold">BUGÜN</div>
           <div className="mt-2 text-3xl font-extrabold text-white">{kpis.totalToday}</div>
           <div className="mt-1 text-sm text-white/60">Rezervasyon</div>
@@ -470,7 +566,7 @@ export default function PanelPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5">
+        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5 shadow-[0_30px_90px_rgba(0,0,0,.32)]">
           <div className="text-xs text-white/55 tracking-[0.18em] font-semibold">TALEPLER</div>
           <div className="mt-2 text-3xl font-extrabold text-white">{kpis.reqTotal}</div>
           <div className="mt-1 text-sm text-white/60">
@@ -483,18 +579,18 @@ export default function PanelPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5">
-          <div className="text-xs text-white/55 tracking-[0.18em] font-semibold">Uyari</div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5 shadow-[0_30px_90px_rgba(0,0,0,.32)]">
+          <div className="text-xs text-white/55 tracking-[0.18em] font-semibold">UYARI</div>
           <div className="mt-2 text-3xl font-extrabold text-white">{kpis.approxMatches}</div>
-          <div className="mt-1 text-sm text-white/60">Kara liste ile olası eşleşme</div>
+          <div className="mt-1 text-sm text-white/60">Uyarı listesi ile olası eşleşme</div>
           <div className="mt-4">
             <Link href="/panel/kayitlar" className="text-sm text-[#7dd3fc] hover:text-white">
-              Kara liste kayıtları →
+              Uyarı listesi kayıtları →
             </Link>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5">
+        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5 shadow-[0_30px_90px_rgba(0,0,0,.32)]">
           <div className="text-xs text-white/55 tracking-[0.18em] font-semibold">OPERASYON</div>
           <div className="mt-2 text-3xl font-extrabold text-white">{kpis.repeatedPhones}</div>
           <div className="mt-1 text-sm text-white/60">Tekrarlayan telefon</div>
@@ -515,7 +611,10 @@ export default function PanelPage() {
             <div>
               <div className="text-white font-semibold">Rezervasyon Akışı</div>
               <div className="text-xs text-white/55 mt-1">
-                {restaurant === "all" ? "Tüm restoranlar" : restaurant} · {formatTRDateFromYMD(date)}
+                {restaurant === "all" || s(restaurant).toLowerCase() === "tümü" || s(restaurant) === ""
+                  ? "Tüm restoranlar"
+                  : normRestaurant(restaurant)}{" "}
+                · {formatTRDateFromYMD(date)}
               </div>
             </div>
 
@@ -556,7 +655,7 @@ export default function PanelPage() {
                       <div className="mt-2 text-sm text-white/60">
                         <span className="text-white/45">Rez:</span> {s(r.reservation_no) || "-"}{" "}
                         <span className="text-white/45">· Masa:</span> {s(r.table_no) || "-"}{" "}
-                        <span className="text-white/45">· Restoran:</span> {s(r.restaurant) || "-"}{" "}
+                        <span className="text-white/45">· Restoran:</span> {normRestaurant(s(r.restaurant)) || "-"}{" "}
                         <span className="text-white/45">· Çocuk:</span> {s(r.kids_u7) || "-"}
                       </div>
 
@@ -581,18 +680,18 @@ export default function PanelPage() {
 
         {/* RIGHT: Action center */}
         <div className="space-y-5">
-          {/* Quick guest check */}
+          {/* Guest check */}
           <motion.div
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55 }}
-            className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5"
+            className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5 shadow-[0_30px_90px_rgba(0,0,0,.28)]"
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-white font-semibold">Hızlı Misafir Sorgulama</div>
+                <div className="text-white font-semibold">Misafir Sorgulama</div>
                 <div className="mt-1 text-sm text-white/60">
-                  Ad Soyad + Telefon ile kara liste kontrolü. Girilen bilgiler aynı anda arama filtresine aktarılır.
+                  Uyarı listesi kontrolü: Ad Soyad ile, Telefon ile veya Ad Soyad + Telefon birlikte sorgulayabilirsiniz.
                 </div>
               </div>
               <div className="flex gap-2">
@@ -614,6 +713,32 @@ export default function PanelPage() {
               </div>
             </div>
 
+            {/* mode pills */}
+            <div className="mt-4 flex flex-wrap gap-2">
+              {([
+                { key: "name", label: "Ad Soyad" },
+                { key: "phone", label: "Telefon" },
+                { key: "both", label: "Ad + Telefon" },
+              ] as const).map((m) => {
+                const active = checkMode === m.key;
+                return (
+                  <button
+                    key={m.key}
+                    type="button"
+                    onClick={() => setCheckMode(m.key)}
+                    className={cx(
+                      "rounded-xl border px-3 py-2 text-sm transition",
+                      active ? "border-[#0ea5ff]/45 bg-[#0ea5ff]/15 text-white" : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
+                    )}
+                    title={m.label}
+                  >
+                    {m.label}
+                  </button>
+                );
+              })}
+              <div className="ml-auto text-xs text-white/45 self-center">{checkHint}</div>
+            </div>
+
             <div className="mt-4 grid md:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-white/60">Ad Soyad</label>
@@ -621,7 +746,11 @@ export default function PanelPage() {
                   value={guestName}
                   onChange={(e) => setGuestName(e.target.value)}
                   placeholder="Örn: Burak Yılmaz"
-                  className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
+                  disabled={checkMode === "phone"}
+                  className={cx(
+                    "mt-2 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35",
+                    checkMode === "phone" && "opacity-50 cursor-not-allowed"
+                  )}
                 />
               </div>
               <div>
@@ -631,44 +760,77 @@ export default function PanelPage() {
                   onChange={(e) => setGuestPhone(e.target.value)}
                   placeholder="05xx..."
                   inputMode="tel"
-                  className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
+                  disabled={checkMode === "name"}
+                  className={cx(
+                    "mt-2 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35",
+                    checkMode === "name" && "opacity-50 cursor-not-allowed"
+                  )}
                 />
               </div>
             </div>
 
             {checkMsg ? (
               <div
-                className={[
+                className={cx(
                   "mt-4 rounded-2xl border px-4 py-3 text-sm",
-                  checkMatches.length > 0
+                  checkMsg === "missing criteria"
+                    ? "border-emerald-300/25 bg-emerald-500/10 text-emerald-100"
+                    : checkMatches.length > 0
                     ? "border-red-300/25 bg-red-500/10 text-red-100"
-                    : "border-emerald-300/25 bg-emerald-500/10 text-emerald-100",
-                ].join(" ")}
+                    : "border-emerald-300/25 bg-emerald-500/10 text-emerald-100"
+                )}
               >
-                <div className="font-semibold">{checkMsg}</div>
+                {checkMsg === "missing criteria" ? (
+                  <div className="font-semibold">missing criteria</div>
+                ) : (
+                  <>
+                    <div className="font-semibold">{checkMsg}</div>
 
-                {checkMatches.length > 0 ? (
-                  <div className="mt-3 text-sm text-red-100/90">
-                    <div className="text-xs text-red-100/70 mb-2">Eşleşme örneği</div>
-                    <div className="rounded-xl border border-red-300/15 bg-black/20 px-3 py-3">
-                      <div className="text-sm font-semibold">
-                        {s(pick(checkMatches[0], ["full_name", "customer_full_name", "subject_person_name"])) || "-"}
-                      </div>
-                      <div className="text-sm text-red-100/80 mt-1">
-                        {s(pick(checkMatches[0], ["phone", "customer_phone", "subject_phone"])) || "-"}
-                      </div>
-                      <div className="text-xs text-red-100/60 mt-2">
-                        {s(pick(checkMatches[0], ["note", "reason", "summary"])) || "Not yok"}
-                      </div>
-                    </div>
+                    {checkMatches.length > 0 ? (
+                      <div className="mt-3 grid gap-3">
+                        {checkMatches.slice(0, 3).map((m: any, i: number) => (
+                          <div key={m.record_id || m.id || i} className="rounded-xl border border-red-300/15 bg-black/20 px-3 py-3">
+                            <div className="grid gap-3 md:grid-cols-4">
+                              <div>
+                                <div className="text-xs text-red-100/60">Risk</div>
+                                <div className="text-sm font-semibold">{s(m.risk_level) || "-"}</div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-red-100/60">Uyarı listesi restoranı</div>
+                                <div className="text-sm font-semibold">{normRestaurant(m.restaurant_name) || "-"}</div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-red-100/60">Ekleyen</div>
+                                <div className="text-sm font-semibold">{s(m.authorized_name) || "-"}</div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-red-100/60">Eklenme tarihi</div>
+                                <div className="text-sm font-semibold">
+                                  {s(m.date) ? formatTRDateFromYMD(s(m.date)) : "-"} {s(m.time) ? ` ${s(m.time)}` : ""}
+                                </div>
+                              </div>
+                            </div>
 
-                    <div className="mt-3">
-                      <Link href="/panel/kayitlar" className="text-sm text-[#7dd3fc] hover:text-white">
-                        Kara liste kayıtlarını aç →
-                      </Link>
-                    </div>
-                  </div>
-                ) : null}
+                            <div className="mt-3">
+                              <div className="text-xs text-red-100/60">Kayıt sahibi</div>
+                              <div className="text-sm font-semibold">{s(m.full_name) || "-"}</div>
+                              <div className="text-sm text-red-100/80 mt-1">{s(m.phone) || "-"}</div>
+                            </div>
+
+                            <div className="mt-3 text-xs text-red-100/60">Not</div>
+                            <div className="text-sm text-red-100/90">{s(m.note) || "Not yok"}</div>
+                          </div>
+                        ))}
+
+                        <div className="mt-1">
+                          <Link href="/panel/kayitlar" className="text-sm text-[#7dd3fc] hover:text-white">
+                            Uyarı listesi kayıtlarını aç →
+                          </Link>
+                        </div>
+                      </div>
+                    ) : null}
+                  </>
+                )}
               </div>
             ) : null}
           </motion.div>
@@ -678,7 +840,7 @@ export default function PanelPage() {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55 }}
-            className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden"
+            className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden shadow-[0_30px_90px_rgba(0,0,0,.28)]"
           >
             <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
               <div>
@@ -703,10 +865,10 @@ export default function PanelPage() {
                         <div className="text-sm text-white/60 mt-2 line-clamp-2">{r.summary || "Not eklenmemiş"}</div>
                       </div>
                       <span
-                        className={[
+                        className={cx(
                           "shrink-0 inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold",
-                          pillClass((r.status as ReqStatus) || "open"),
-                        ].join(" ")}
+                          pillClass((r.status as ReqStatus) || "open")
+                        )}
                       >
                         {trStatus(((r.status as ReqStatus) || "open") as ReqStatus)}
                       </span>
@@ -717,16 +879,16 @@ export default function PanelPage() {
             )}
           </motion.div>
 
-          {/* Recent blacklist */}
+          {/* Recent warning list */}
           <motion.div
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55 }}
-            className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden"
+            className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden shadow-[0_30px_90px_rgba(0,0,0,.28)]"
           >
             <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
               <div>
-                <div className="text-white font-semibold">Kara Liste</div>
+                <div className="text-white font-semibold">Uyarı Listesi</div>
                 <div className="text-xs text-white/55 mt-1">Son eklenen kayıtlar</div>
               </div>
               <Link href="/panel/kayitlar" className="text-sm text-[#7dd3fc] hover:text-white">
@@ -734,18 +896,18 @@ export default function PanelPage() {
               </Link>
             </div>
 
-            {recentBlacklist.length === 0 ? (
+            {warningRows.length === 0 ? (
               <div className="px-5 py-8 text-sm text-white/55">Kayıt yok.</div>
             ) : (
               <div className="divide-y divide-white/10">
-                {recentBlacklist.slice(0, 5).map((r: any) => (
+                {warningRows.slice(0, 5).map((r: any) => (
                   <div key={r.record_id || r.id} className="px-5 py-4 hover:bg-white/5">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="text-white/90 font-semibold truncate">{r.full_name || "-"}</div>
                         <div className="text-sm text-white/60 mt-1">{r.phone || "-"}</div>
                         <div className="text-xs text-white/45 mt-2">
-                          {r.restaurant_name ? `${r.restaurant_name} · ` : ""}
+                          {r.restaurant_name ? `${normRestaurant(r.restaurant_name)} · ` : ""}
                           {formatTRDateFromYMD(s(r.date))} {s(r.time) ? `• ${s(r.time)}` : ""}
                         </div>
                       </div>
@@ -764,41 +926,30 @@ export default function PanelPage() {
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55 }}
-        className="mt-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5"
+        className="mt-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5 shadow-[0_30px_90px_rgba(0,0,0,.28)]"
       >
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
             <div className="text-white font-semibold">Hızlı İşlemler</div>
-            <div className="text-sm text-white/60 mt-1">
-              Panelin en sık kullanılan aksiyonlarına tek tıkla erişin.
-            </div>
+            <div className="text-sm text-white/60 mt-1">Panelin en sık kullanılan aksiyonlarına tek tıkla erişin.</div>
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Link
-              href="/panel/rezervasyon"
-              className="rounded-xl bg-[#0ea5ff] px-5 py-3 text-sm font-semibold text-[#06121f] hover:opacity-95"
-            >
+            <Link href="/panel/rezervasyon" className="rounded-xl bg-[#0ea5ff] px-5 py-3 text-sm font-semibold text-[#06121f] hover:opacity-95">
               Rezervasyon Oluştur
             </Link>
-            <Link
-              href="/panel/rezervasyon/duzenle"
-              className="rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm text-white hover:bg-white/10"
-            >
+            <Link href="/panel/rezervasyon/duzenle" className="rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm text-white hover:bg-white/10">
               Rezervasyon Düzenle
             </Link>
-            <Link
-              href="/panel/kayit/ekle"
-              className="rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm text-white hover:bg-white/10"
-            >
-              Kara Liste’ye Aktar
+            <Link href="/panel/kayit/ekle" className="rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm text-white hover:bg-white/10">
+              Uyarı Listesi’ne Aktar
             </Link>
           </div>
         </div>
 
         {me?.user ? (
           <div className="mt-4 text-xs text-white/45">
-            Oturum: {me.user.full_name} · {me.user.restaurant_name} · {me.user.role === "manager" ? "Müdür" : "Personel"}
+            Oturum: {me.user.full_name} · {normRestaurant(me.user.restaurant_name)} · {me.user.role === "manager" ? "Müdür" : "Personel"}
           </div>
         ) : null}
       </motion.div>

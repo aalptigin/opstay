@@ -11,21 +11,23 @@ type ReservationRow = {
   reservation_no?: string;
   table_no?: string;
 
-  date?: string; // YYYY-MM-DD veya dd/MM/yyyy (API normalize edebilir)
-  time?: string; // HH:mm
+  date?: string;
+  time?: string;
 
   customer_full_name?: string;
   customer_phone?: string;
 
-  // ✅ Alan adları (GS/UI uyumluluk)
   kids_u7?: string;
   child_u7?: string;
   officer_name?: string;
   authorized_name?: string;
 
+  guest_count?: string;
+  people_count?: string;
+  total_guests?: string;
+
   note?: string;
 
-  // eski alanlar gelebilir (geriye uyumluluk)
   datetime?: string;
   full_name?: string;
   phone?: string;
@@ -39,6 +41,14 @@ type BlacklistCheckResponse = {
     phone?: string;
     note?: string;
     risk_level?: string;
+
+    added_by?: string;
+    added_by_name?: string;
+    added_at?: string;
+    created_at?: string;
+
+    restaurant?: string;
+    restaurant_name?: string;
   };
   message?: string;
 };
@@ -55,11 +65,10 @@ export default function ReservationsPage() {
   const [rows, setRows] = useState<ReservationRow[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
 
-  // Yükleme state'lerini ayır (liste / kayıt)
   const [listLoading, setListLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Misafir Sorgulama (Ad Soyad + Telefon)
+  // Misafir Sorgulama
   const [lookupName, setLookupName] = useState("");
   const [lookupPhone, setLookupPhone] = useState("");
 
@@ -67,15 +76,12 @@ export default function ReservationsPage() {
   const [lookupErr, setLookupErr] = useState<string | null>(null);
   const [lookupResult, setLookupResult] = useState<BlacklistCheckResponse | null>(null);
 
-  // Tablo filtre (sorgulama alanı ile eş zamanlı)
+  // Tablo filtre
   const [tableFilterName, setTableFilterName] = useState("");
   const [tableFilterPhone, setTableFilterPhone] = useState("");
 
   function normPhone(v: string) {
-    // +90 vb. ihtimalini bozmadan, tamamen sayıya çek
-    const cleaned = String(v ?? "").replace(/[^\d+]/g, "").trim();
-    // Tipik TR girişleri için: +90 varsa +90xxxxx..., 0 ile başlıyorsa 0xxxxxxxxxx
-    return cleaned;
+    return String(v ?? "").replace(/[^\d+]/g, "").trim();
   }
 
   function todayISO() {
@@ -89,14 +95,11 @@ export default function ReservationsPage() {
   function normalizeToISODate(v: any) {
     const raw = String(v ?? "").trim();
     if (!raw) return "";
-    // ISO already
     if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
 
-    // TR format like 02/01/2026 or 02.01.2026
     const m = raw.match(/^(\d{2})[\/\.](\d{2})[\/\.](\d{4})$/);
     if (m) return `${m[3]}-${m[2]}-${m[1]}`;
 
-    // datetime string
     if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) return raw.slice(0, 10);
 
     const d = new Date(raw);
@@ -113,11 +116,8 @@ export default function ReservationsPage() {
   function formatTRDate(v: any) {
     const raw = s(v);
     if (!raw) return "-";
-    // dd/MM/yyyy ise aynen
     if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) return raw;
-    // 29.12.2025 -> 29/12/2025
     if (/^\d{2}\.\d{2}\.\d{4}$/.test(raw)) return raw.replace(/\./g, "/");
-    // ISO
     if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
       const d = new Date(`${raw}T00:00:00`);
       if (!Number.isNaN(d.getTime())) {
@@ -130,7 +130,6 @@ export default function ReservationsPage() {
         return out.replace(/\./g, "/");
       }
     }
-    // datetime
     const d = new Date(raw);
     if (!Number.isNaN(d.getTime())) {
       const out = new Intl.DateTimeFormat("tr-TR", {
@@ -162,7 +161,27 @@ export default function ReservationsPage() {
     return raw;
   }
 
-  // Restoran seçimi (buton + mini menü)
+  function formatTRDateTime(v: any) {
+    const raw = s(v);
+    if (!raw) return "-";
+    const d = new Date(raw);
+    if (!Number.isNaN(d.getTime())) {
+      const out = new Intl.DateTimeFormat("tr-TR", {
+        timeZone: "Europe/Istanbul",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).format(d);
+      return out.replace(/\./g, "/");
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return formatTRDate(raw);
+    return raw;
+  }
+
+  // Restoran seçimi
   const [restaurant, setRestaurant] = useState<"Happy Moons" | "Roof">("Happy Moons");
   const [restaurantOpen, setRestaurantOpen] = useState(false);
   const restaurantWrapRef = useRef<HTMLDivElement | null>(null);
@@ -179,9 +198,105 @@ export default function ReservationsPage() {
   const [time, setTime] = useState("19:00");
   const [customerFullName, setCustomerFullName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+
+  // ✅ kişi + çocuk (sıra: kişi -> çocuk)
+  const [peopleCount, setPeopleCount] = useState("");
   const [childU7Count, setChildU7Count] = useState("");
+
   const [staffFullName, setStaffFullName] = useState("");
   const [note, setNote] = useState("");
+
+  // ✅ restoran bazlı rez no (Happy Moons / Roof ayrı ve senkron)
+  const lastResNoKey = useMemo(() => `opsstay_last_reservation_no::${restaurant}`, [restaurant]);
+
+  function nextReservationNo(curr: string) {
+    const raw = s(curr);
+    if (!raw) return raw;
+    if (/^\d+$/.test(raw)) {
+      const n = parseInt(raw, 10);
+      if (!Number.isNaN(n)) return String(n + 1);
+      return raw;
+    }
+    const m = raw.match(/^(.*?)(\d+)\s*$/);
+    if (m) {
+      const prefix = m[1] ?? "";
+      const num = parseInt(m[2], 10);
+      if (!Number.isNaN(num)) return `${prefix}${num + 1}`;
+    }
+    return raw;
+  }
+
+  // ✅ Restoran değişince, o restoranın son numarasını yükle (yoksa listeden türet)
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem(lastResNoKey) || "";
+      if (s(v)) {
+        setReservationNo(v);
+        return;
+      }
+    } catch {
+      // ignore
+    }
+
+    // localStorage boşsa: mevcut rows içinden o restoranın en büyük numarasını bulup +1 öner
+    const list = (rows || []).filter((r) => (r.restaurant || "") === restaurant);
+    let best: string = "";
+    let bestNum = -1;
+
+    for (const r of list) {
+      const rn = s(r.reservation_no);
+      if (!rn) continue;
+
+      // sadece sayı ise
+      if (/^\d+$/.test(rn)) {
+        const n = parseInt(rn, 10);
+        if (!Number.isNaN(n) && n > bestNum) {
+          bestNum = n;
+          best = rn;
+        }
+        continue;
+      }
+
+      // sonda sayı varsa (RZV-12)
+      const m = rn.match(/(\d+)\s*$/);
+      if (m) {
+        const n = parseInt(m[1], 10);
+        if (!Number.isNaN(n) && n > bestNum) {
+          bestNum = n;
+          best = rn;
+        }
+      }
+    }
+
+    if (bestNum >= 0) {
+      const candidate = nextReservationNo(best);
+      setReservationNo(candidate);
+      try {
+        localStorage.setItem(lastResNoKey, s(candidate));
+      } catch {
+        // ignore
+      }
+    } else {
+      // hiç kayıt yoksa: 1
+      setReservationNo("1");
+      try {
+        localStorage.setItem(lastResNoKey, "1");
+      } catch {
+        // ignore
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurant, lastResNoKey, rows]); // rows bağımlılığı eklendi
+
+  // ✅ input değiştikçe o restoran anahtarına yaz (Roof dahil senkron)
+  useEffect(() => {
+    try {
+      const v = s(reservationNo);
+      if (v) localStorage.setItem(lastResNoKey, v);
+    } catch {
+      // ignore
+    }
+  }, [reservationNo, lastResNoKey]);
 
   const datetimeISO = useMemo(() => {
     const d = (date || "").trim();
@@ -194,6 +309,8 @@ export default function ReservationsPage() {
     setLookupName(v);
     setCustomerFullName(v);
     setTableFilterName(v);
+    setLookupErr(null);
+    setLookupResult(null);
   }
 
   function onLookupPhone(v: string) {
@@ -201,6 +318,8 @@ export default function ReservationsPage() {
     setLookupPhone(p);
     setCustomerPhone(p);
     setTableFilterPhone(p);
+    setLookupErr(null);
+    setLookupResult(null);
   }
 
   function resetLookupAndFilters(syncFormToo = false) {
@@ -244,14 +363,91 @@ export default function ReservationsPage() {
     }
   }
 
+  function viewDate(r: ReservationRow) {
+    if (r.date) return r.date;
+    if (r.datetime) return String(r.datetime).slice(0, 10);
+    return "-";
+  }
+  function viewTime(r: ReservationRow) {
+    if (r.time) return r.time;
+    if (r.datetime) return String(r.datetime).slice(11, 16);
+    return "-";
+  }
+  function viewCustomerName(r: ReservationRow) {
+    return r.customer_full_name || r.full_name || "-";
+  }
+  function viewCustomerPhone(r: ReservationRow) {
+    return r.customer_phone || r.phone || "-";
+  }
+  function viewPeopleCount(r: ReservationRow) {
+    return r.people_count || r.guest_count || r.total_guests || "-";
+  }
+
+  // Tek alan girilince geçmişten tamamla
+  const derivedLookup = useMemo(() => {
+    const n = lookupName.trim().toLowerCase();
+    const p = normPhone(lookupPhone);
+
+    let nameFromHistory = "";
+    let phoneFromHistory = "";
+
+    if (p) {
+      const hit = (rows || [])
+        .slice()
+        .sort((a, b) => {
+          const da = normalizeToISODate(viewDate(a));
+          const db = normalizeToISODate(viewDate(b));
+          if (da !== db) return String(db).localeCompare(String(da));
+          const ta = String(viewTime(a) || "");
+          const tb = String(viewTime(b) || "");
+          return tb.localeCompare(ta);
+        })
+        .find((r) => {
+          const rp = normPhone(String(viewCustomerPhone(r)));
+          return rp === p || rp.includes(p);
+        });
+
+      if (hit) nameFromHistory = String(viewCustomerName(hit) || "").trim();
+    }
+
+    if (n) {
+      const hit = (rows || [])
+        .slice()
+        .sort((a, b) => {
+          const da = normalizeToISODate(viewDate(a));
+          const db = normalizeToISODate(viewDate(b));
+          if (da !== db) return String(db).localeCompare(String(da));
+          const ta = String(viewTime(a) || "");
+          const tb = String(viewTime(b) || "");
+          return tb.localeCompare(ta);
+        })
+        .find((r) => String(viewCustomerName(r) || "").trim().toLowerCase().includes(n));
+
+      if (hit) phoneFromHistory = normPhone(String(viewCustomerPhone(hit) || ""));
+    }
+
+    return { nameFromHistory, phoneFromHistory };
+  }, [rows, lookupName, lookupPhone]);
+
   async function runBlacklistLookup(name: string, phone: string) {
-    const n = String(name ?? "").trim();
-    const p = normPhone(phone ?? "");
+    const nRaw = String(name ?? "").trim();
+    const pRaw = normPhone(phone ?? "");
+
+    const n = nRaw || derivedLookup.nameFromHistory || "";
+    const p = pRaw || derivedLookup.phoneFromHistory || "";
 
     setLookupErr(null);
     setLookupResult(null);
 
-    if (!n || !p) return;
+    if (!nRaw && !pRaw) return;
+
+    if (!n || !p) {
+      const missing = !n && !p ? "ad soyad ve telefon" : !n ? "ad soyad" : "telefon";
+      setLookupErr(
+        `Sorgu için ${missing} gerekli. ${missing === "telefon" ? "Geçmiş kayıtlardan telefon bulunamadı." : missing === "ad soyad" ? "Geçmiş kayıtlardan isim bulunamadı." : ""}`.trim()
+      );
+      return;
+    }
 
     setLookupLoading(true);
     try {
@@ -276,7 +472,7 @@ export default function ReservationsPage() {
     load();
   }, []);
 
-  // Restoran dropdown: dışarı tıkla / ESC kapat
+  // dropdown: dışarı tıkla / ESC
   useEffect(() => {
     function onDocDown(e: MouseEvent) {
       if (!restaurantOpen) return;
@@ -294,25 +490,6 @@ export default function ReservationsPage() {
       document.removeEventListener("keydown", onKey);
     };
   }, [restaurantOpen]);
-
-  // Otomatik sorgu (debounce): Ad Soyad + Telefon dolunca 450ms sonra kontrol
-  useEffect(() => {
-    const n = lookupName.trim();
-    const p = lookupPhone.trim();
-
-    setLookupErr(null);
-
-    if (!n || !p) {
-      setLookupResult(null);
-      return;
-    }
-
-    const t = setTimeout(() => {
-      runBlacklistLookup(n, p);
-    }, 450);
-
-    return () => clearTimeout(t);
-  }, [lookupName, lookupPhone]);
 
   async function createReservation() {
     setMsg(null);
@@ -341,13 +518,17 @@ export default function ReservationsPage() {
         officer_name: s(staffFullName),
         note: s(note),
 
-        // geriye uyumluluk (backend eski alanları kullanıyorsa)
+        // ✅ kişi sayısı (çocuktan önce)
+        guest_count: s(peopleCount),
+        people_count: s(peopleCount),
+        total_guests: s(peopleCount),
+
         datetime: datetimeISO,
         full_name: s(customerFullName),
         phone: normPhone(customerPhone),
       };
 
-      // her iki restoran için de çocuk sayısı
+      // çocuk
       const kids = s(childU7Count);
       payload.kids_u7 = kids;
       payload.child_u7 = kids;
@@ -363,18 +544,24 @@ export default function ReservationsPage() {
 
       setMsg("Rezervasyon oluşturuldu.");
 
-      setReservationNo("");
+      // ✅ sonraki rez no (restoran bazlı) + localStorage senkron
+      const nextNo = nextReservationNo(reservationNo);
+      try {
+        if (s(nextNo)) localStorage.setItem(lastResNoKey, s(nextNo));
+      } catch {
+        // ignore
+      }
+      setReservationNo(nextNo);
+
       setTableNo("");
       setDate(`${yyyy}-${mm}-${dd}`);
       setTime("19:00");
       setCustomerFullName("");
       setCustomerPhone("");
+      setPeopleCount("");
       setChildU7Count("");
       setStaffFullName("");
       setNote("");
-
-      // Sorgulama alanı da temizlensin (form ile çakışmasın)
-      resetLookupAndFilters(false);
 
       await load();
     } catch (e: any) {
@@ -384,40 +571,22 @@ export default function ReservationsPage() {
     }
   }
 
-  // Listeyi ekranda tutarlı göstermek için (bazı kayıtlar eski format olabilir)
-  function viewDate(r: ReservationRow) {
-    if (r.date) return r.date;
-    if (r.datetime) return String(r.datetime).slice(0, 10);
-    return "-";
-  }
-  function viewTime(r: ReservationRow) {
-    if (r.time) return r.time;
-    if (r.datetime) return String(r.datetime).slice(11, 16);
-    return "-";
-  }
-  function viewCustomerName(r: ReservationRow) {
-    return r.customer_full_name || r.full_name || "-";
-  }
-  function viewCustomerPhone(r: ReservationRow) {
-    return r.customer_phone || r.phone || "-";
-  }
-
-  // ✅ Misafir sorgulama doluyken: aynı misafirin geçmiş rezervasyonlarını da çıkar
+  // geçmiş rezervasyonlar
   const guestHistoryRows = useMemo(() => {
     const n = lookupName.trim().toLowerCase();
     const p = normPhone(lookupPhone);
 
-    if (!n || !p) return [];
+    if (!n && !p) return [];
 
     return (rows || [])
       .filter((r) => {
         const rn = String(r.customer_full_name || r.full_name || "").trim().toLowerCase();
         const rp = normPhone(String(r.customer_phone || r.phone || ""));
-        // name + phone ikisi de eşleşsin (includes ile toleranslı)
-        return rn && rp && rn.includes(n) && rp.includes(p);
+        const nameOk = !n || (rn && rn.includes(n));
+        const phoneOk = !p || (rp && rp.includes(p));
+        return nameOk && phoneOk;
       })
       .sort((a, b) => {
-        // tarih desc, saat desc
         const da = normalizeToISODate(viewDate(a));
         const db = normalizeToISODate(viewDate(b));
         if (da !== db) return String(db).localeCompare(String(da));
@@ -436,10 +605,7 @@ export default function ReservationsPage() {
 
     const list = (rows || [])
       .filter((r) => {
-        // ✅ Misafir sorgulama/filtre kullanılıyorsa: tarih kısıtı kaldır (geçmiş rezervasyonlar da görünsün)
         if (hasAnyFilter) return true;
-
-        // ✅ Filtre yoksa: sadece bugünün rezervasyonları
         const rd = normalizeToISODate(viewDate(r));
         return rd === today;
       })
@@ -451,12 +617,11 @@ export default function ReservationsPage() {
         return nameOk && phoneOk;
       });
 
-    // ✅ Filtre varsa: tarih (desc) + saat (asc) ile sırala; yoksa mevcut davranış (saat asc)
     if (hasAnyFilter) {
       return list.sort((a, b) => {
         const da = normalizeToISODate(viewDate(a));
         const db = normalizeToISODate(viewDate(b));
-        if (da !== db) return String(db).localeCompare(String(da)); // yeni tarih üstte
+        if (da !== db) return String(db).localeCompare(String(da));
         const ta = String(viewTime(a) || "");
         const tb = String(viewTime(b) || "");
         return ta.localeCompare(tb);
@@ -470,6 +635,22 @@ export default function ReservationsPage() {
     });
   }, [rows, tableFilterName, tableFilterPhone]);
 
+  // Risk rengi
+  const riskUI = useMemo(() => {
+    const risk = String(lookupResult?.match?.risk_level || "").toLowerCase();
+    const isHigh = /yüksek|high|kritik|critical/.test(risk);
+    const isMid = /orta|medium/.test(risk);
+    const isLow = /düşük|low/.test(risk);
+
+    if (isHigh)
+      return { border: "border-red-500/30", bg: "bg-red-500/10", text: "text-red-100", sub: "text-red-100/80" };
+    if (isMid)
+      return { border: "border-amber-500/30", bg: "bg-amber-500/10", text: "text-amber-100", sub: "text-amber-100/80" };
+    if (isLow)
+      return { border: "border-yellow-500/30", bg: "bg-yellow-500/10", text: "text-yellow-100", sub: "text-yellow-100/80" };
+    return { border: "border-amber-500/25", bg: "bg-amber-500/10", text: "text-amber-100", sub: "text-amber-100/80" };
+  }, [lookupResult]);
+
   return (
     <div>
       <div className="text-white/60 text-xs tracking-[0.35em] font-semibold">REZERVASYON</div>
@@ -482,7 +663,7 @@ export default function ReservationsPage() {
         transition={{ duration: 0.45 }}
         className="mt-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5 relative"
       >
-        {/* 1) Sağ üst: Restoran seçimi */}
+        {/* Sağ üst: Restoran seçimi */}
         <div className="absolute -top-4 right-4 z-20" ref={restaurantWrapRef}>
           <div className="relative">
             <button
@@ -517,14 +698,14 @@ export default function ReservationsPage() {
           </div>
         </div>
 
-        {/* Misafir Sorgulama (EN ÜSTTE) */}
+        {/* Misafir Sorgulama */}
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-sm font-semibold text-white">Misafir Sorgulama</div>
               <div className="mt-1 text-xs text-white/60">
-                Ad Soyad + Telefon ile sorgu yapılır. Girilen bilgiler rezervasyon formuna ve aşağıdaki liste filtresine
-                eş zamanlı aktarılır.
+                Ad Soyad veya Telefon ile sorgu yapılır. Girilen bilgiler rezervasyon formuna ve aşağıdaki liste filtresine eş
+                zamanlı aktarılır.
               </div>
             </div>
 
@@ -540,7 +721,7 @@ export default function ReservationsPage() {
               <button
                 type="button"
                 onClick={() => runBlacklistLookup(lookupName, lookupPhone)}
-                disabled={lookupLoading || !lookupName.trim() || !lookupPhone.trim()}
+                disabled={lookupLoading || (!lookupName.trim() && !lookupPhone.trim())}
                 className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
               >
                 {lookupLoading ? "Sorgulanıyor..." : "Sorgula"}
@@ -549,7 +730,7 @@ export default function ReservationsPage() {
           </div>
 
           <div className="mt-3 grid md:grid-cols-2 gap-3">
-            <div>
+            <div className="min-w-0">
               <label className="text-xs text-white/60">Ad Soyad</label>
               <input
                 value={lookupName}
@@ -557,9 +738,15 @@ export default function ReservationsPage() {
                 className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
                 placeholder="Örn: Burak Yılmaz"
               />
+              {lookupName.trim() && !lookupPhone.trim() && derivedLookup.phoneFromHistory ? (
+                <div className="mt-1 text-[11px] text-white/40">
+                  Geçmiş kayıtlardan bulunan telefon ile sorgulanabilir:{" "}
+                  <span className="text-white/60">{derivedLookup.phoneFromHistory}</span>
+                </div>
+              ) : null}
             </div>
 
-            <div>
+            <div className="min-w-0">
               <label className="text-xs text-white/60">Telefon</label>
               <input
                 value={lookupPhone}
@@ -569,52 +756,94 @@ export default function ReservationsPage() {
                 inputMode="tel"
               />
               <div className="mt-1 text-[11px] text-white/40">Sadece rakam girmeniz yeterli (boşluk/çizgi fark etmez).</div>
+
+              {lookupPhone.trim() && !lookupName.trim() && derivedLookup.nameFromHistory ? (
+                <div className="mt-1 text-[11px] text-white/40">
+                  Geçmiş kayıtlardan bulunan isim ile sorgulanabilir:{" "}
+                  <span className="text-white/60">{derivedLookup.nameFromHistory}</span>
+                </div>
+              ) : null}
             </div>
           </div>
 
           <div className="mt-3">
             {lookupErr ? (
-              <div className="rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200">
-                {lookupErr}
-              </div>
+              <div className="rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200">{lookupErr}</div>
             ) : null}
 
             {lookupLoading ? (
               <div className="text-xs text-white/45">Sorgulanıyor...</div>
             ) : lookupResult?.ok ? (
               lookupResult.is_blacklisted ? (
-                <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
-                  <div className="font-semibold">Uyarı: Bu misafir kara listede görünüyor.</div>
-                  {lookupResult.match?.risk_level ? (
-                    <div className="mt-1 text-xs text-amber-100/80">Risk: {lookupResult.match.risk_level}</div>
-                  ) : null}
-                  {lookupResult.match?.note ? (
-                    <div className="mt-1 text-xs text-amber-100/80">Not: {lookupResult.match.note}</div>
-                  ) : null}
+                // ✅ 1) KUTULAR AYNI HİZADA: 4 eşit kolonlu grid
+                <div className={cx("rounded-xl border px-4 py-3", riskUI.border, riskUI.bg, riskUI.text)}>
+                  <div className="font-semibold">Uyarı: Bu misafir uyarı listesinde bulunuyor.</div>
+
+                  <div className={cx("mt-3 grid grid-cols-1 md:grid-cols-4 gap-4 text-xs", riskUI.sub)}>
+                    <div className="min-w-0 space-y-1">
+                      <div className="opacity-70 whitespace-nowrap">Risk</div>
+                      <div className="font-semibold truncate">
+                        {lookupResult.match?.risk_level ? lookupResult.match.risk_level : "Belirtilmemiş"}
+                      </div>
+                    </div>
+
+                    <div className="min-w-0 space-y-1">
+                      <div className="opacity-70 whitespace-nowrap">Uyarı listesi restoranı</div>
+                      <div className="font-semibold truncate">
+                        {lookupResult.match?.restaurant || lookupResult.match?.restaurant_name || "Belirtilmemiş"}
+                      </div>
+                    </div>
+
+                    <div className="min-w-0 space-y-1">
+                      <div className="opacity-70 whitespace-nowrap">Ekleyen</div>
+                      <div className="font-semibold truncate">
+                        {lookupResult.match?.added_by_name || lookupResult.match?.added_by || "Belirtilmemiş"}
+                      </div>
+                    </div>
+
+                    <div className="min-w-0 space-y-1">
+                      <div className="opacity-70 whitespace-nowrap">Eklenme tarihi</div>
+                      <div className="font-semibold truncate">
+                        {lookupResult.match?.added_at || lookupResult.match?.created_at
+                          ? formatTRDateTime(lookupResult.match?.added_at || lookupResult.match?.created_at || "")
+                          : "Belirtilmemiş"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={cx("mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs", riskUI.sub)}>
+                    <div className="min-w-0 space-y-1">
+                      <div className="opacity-70 whitespace-nowrap">Kayıt sahibi</div>
+                      <div className="font-semibold truncate">{lookupResult.match?.full_name ? lookupResult.match.full_name : "Belirtilmemiş"}</div>
+                    </div>
+
+                    <div className="min-w-0 space-y-1">
+                      <div className="opacity-70 whitespace-nowrap">Not</div>
+                      <div className="font-semibold line-clamp-2">{lookupResult.match?.note ? lookupResult.match.note : "Belirtilmemiş"}</div>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100">
-                  Kara listede eşleşme bulunamadı.
+                  Uyarı listesinde yer almıyor.
                 </div>
               )
             ) : (
               <div className="text-xs text-white/45">
-                {lookupName.trim() && lookupPhone.trim()
-                  ? "Sonuç bekleniyor..."
-                  : "Sorgulamak için Ad Soyad ve Telefon girin."}
+                {lookupName.trim() || lookupPhone.trim()
+                  ? "Sorgulamak için \"Sorgula\" butonuna basın."
+                  : "Sorgulamak için Ad Soyad veya Telefon girin."}
               </div>
             )}
           </div>
 
-          {/* ✅ Önceki rezervasyonlar (Misafir sorgulama ile birlikte) */}
+          {/* Önceki rezervasyonlar */}
           <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
             <div className="px-4 py-3 flex items-center justify-between">
               <div>
                 <div className="text-sm font-semibold text-white">Önceki Rezervasyonlar</div>
                 <div className="text-[11px] text-white/50 mt-1">
-                  {lookupName.trim() && lookupPhone.trim()
-                    ? `Eşleşen kayıt: ${guestHistoryRows.length}`
-                    : "Görüntülemek için Ad Soyad ve Telefon girin."}
+                  {lookupName.trim() || lookupPhone.trim() ? `Eşleşen kayıt: ${guestHistoryRows.length}` : "Görüntülemek için Ad Soyad veya Telefon girin."}
                 </div>
               </div>
             </div>
@@ -633,7 +862,7 @@ export default function ReservationsPage() {
                 </thead>
 
                 <tbody className="text-white/85">
-                  {lookupName.trim() && lookupPhone.trim() ? (
+                  {lookupName.trim() || lookupPhone.trim() ? (
                     guestHistoryRows.length ? (
                       guestHistoryRows.map((r, idx) => (
                         <tr key={(r.reservation_id || "") + "h" + idx} className="border-b border-white/10 hover:bg-white/5">
@@ -655,7 +884,7 @@ export default function ReservationsPage() {
                   ) : (
                     <tr>
                       <td className="px-4 py-4 text-white/55" colSpan={6}>
-                        Ad Soyad ve Telefon girilince geçmiş rezervasyonlar listelenir.
+                        Ad Soyad veya Telefon girince geçmiş rezervasyonlar listelenir.
                       </td>
                     </tr>
                   )}
@@ -665,10 +894,9 @@ export default function ReservationsPage() {
           </div>
         </div>
 
-        {/* FORM GRID */}
+        {/* FORM GRID - 2 kolonlu ilk bölüm */}
         <div className="mt-4 grid md:grid-cols-2 gap-4">
-          {/* 2) Rezervasyon No */}
-          <div>
+          <div className="min-w-0">
             <label className="text-xs text-white/60">Rezervasyon numarası</label>
             <input
               value={reservationNo}
@@ -679,8 +907,7 @@ export default function ReservationsPage() {
             <div className="mt-1 text-[11px] text-white/40">Öneri: POS/defter numarası ile aynı format.</div>
           </div>
 
-          {/* 3) Masa No */}
-          <div>
+          <div className="min-w-0">
             <label className="text-xs text-white/60">Masa numarası</label>
             <input
               value={tableNo}
@@ -691,8 +918,7 @@ export default function ReservationsPage() {
             />
           </div>
 
-          {/* 4) Gün/Ay/Yıl (date) */}
-          <div>
+          <div className="min-w-0">
             <label className="text-xs text-white/60">Gün / Ay / Yıl</label>
             <input
               type="date"
@@ -711,8 +937,7 @@ export default function ReservationsPage() {
             </div>
           </div>
 
-          {/* 5) Saat (time) */}
-          <div>
+          <div className="min-w-0">
             <label className="text-xs text-white/60">Saat</label>
             <input
               type="time"
@@ -732,10 +957,23 @@ export default function ReservationsPage() {
               />
             </div>
           </div>
+        </div>
 
-          {/* 8) 7 yaş altı çocuk sayısı */}
-          <div>
-            <label className="text-xs text-white/60">7 yaş altı çocuk sayısı</label>
+        {/* ✅ 3 KOLONLU DÜZEN: Kişi sayısı + Çocuk sayısı + Yetkili adı */}
+        <div className="mt-4 grid md:grid-cols-3 gap-4">
+          <div className="min-w-0">
+            <label className="text-xs text-white/60">Kişi sayısı (toplam)</label>
+            <input
+              value={peopleCount}
+              onChange={(e) => setPeopleCount(e.target.value.replace(/\D/g, "").slice(0, 2))}
+              className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#0ea5ff]/35"
+              placeholder="0"
+              inputMode="numeric"
+            />
+          </div>
+
+          <div className="min-w-0">
+            <label className="text-xs text-white/60">7 yaş altı çocuk</label>
             <input
               value={childU7Count}
               onChange={(e) => setChildU7Count(e.target.value.replace(/\D/g, "").slice(0, 2))}
@@ -745,8 +983,7 @@ export default function ReservationsPage() {
             />
           </div>
 
-          {/* 9) Yetkili adı */}
-          <div>
+          <div className="min-w-0">
             <label className="text-xs text-white/60">Rezervasyonu alan yetkili (isim soyisim)</label>
             <input
               value={staffFullName}
@@ -798,6 +1035,7 @@ export default function ReservationsPage() {
                   setTime("19:00");
                   setCustomerFullName("");
                   setCustomerPhone("");
+                  setPeopleCount("");
                   setChildU7Count("");
                   setStaffFullName("");
                   setNote("");
@@ -838,9 +1076,7 @@ export default function ReservationsPage() {
         <div className="px-5 py-4 flex items-center justify-between">
           <div>
             <div className="text-white font-semibold">Bugünün Rezervasyonları</div>
-            <div className="text-xs text-white/50 mt-1">
-              {listLoading ? "Yükleniyor..." : `Toplam: ${filteredRows.length}`}
-            </div>
+            <div className="text-xs text-white/50 mt-1">{listLoading ? "Yükleniyor..." : `Toplam: ${filteredRows.length}`}</div>
           </div>
 
           <button
@@ -864,6 +1100,7 @@ export default function ReservationsPage() {
                 <th className="text-left px-5 py-3 whitespace-nowrap">Saat</th>
                 <th className="text-left px-5 py-3 whitespace-nowrap">Müşteri</th>
                 <th className="text-left px-5 py-3 whitespace-nowrap">Telefon</th>
+                <th className="text-left px-5 py-3 whitespace-nowrap">Kişi Sayısı</th>
                 <th className="text-left px-5 py-3 whitespace-nowrap">Çocuk (7-)</th>
                 <th className="text-left px-5 py-3 whitespace-nowrap">Yetkili</th>
                 <th className="text-left px-5 py-3 whitespace-nowrap">Not</th>
@@ -874,7 +1111,7 @@ export default function ReservationsPage() {
               {listLoading ? (
                 Array.from({ length: 7 }).map((_, i) => (
                   <tr key={i} className="border-t border-white/10 animate-pulse">
-                    {Array.from({ length: 10 }).map((__, j) => (
+                    {Array.from({ length: 11 }).map((__, j) => (
                       <td key={j} className="px-5 py-3">
                         <div className="h-3 rounded bg-white/10" />
                       </td>
@@ -892,6 +1129,7 @@ export default function ReservationsPage() {
                       <td className="px-5 py-3 text-white/70 whitespace-nowrap">{formatTRTime(viewTime(r))}</td>
                       <td className="px-5 py-3 whitespace-nowrap">{viewCustomerName(r)}</td>
                       <td className="px-5 py-3 text-white/70 whitespace-nowrap">{viewCustomerPhone(r)}</td>
+                      <td className="px-5 py-3 text-white/70 whitespace-nowrap">{viewPeopleCount(r)}</td>
                       <td className="px-5 py-3 text-white/70 whitespace-nowrap">{r.kids_u7 || r.child_u7 || "-"}</td>
                       <td className="px-5 py-3 text-white/70 whitespace-nowrap">{r.officer_name || r.authorized_name || "-"}</td>
                       <td className="px-5 py-3 text-white/70 min-w-[260px]">{r.note || "-"}</td>
@@ -900,7 +1138,7 @@ export default function ReservationsPage() {
 
                   {filteredRows.length === 0 && (
                     <tr className="border-t border-white/10">
-                      <td className="px-5 py-10 text-white/55" colSpan={10}>
+                      <td className="px-5 py-10 text-white/55" colSpan={11}>
                         Sonuç yok. (Bugünün rezervasyonları listelenir. Sorgulama alanları ile filtrelenir.)
                       </td>
                     </tr>

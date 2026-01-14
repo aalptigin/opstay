@@ -38,19 +38,38 @@ function NavItem({
       href={href}
       className={cx(
         "relative block rounded-xl px-3 py-2 text-sm transition border",
-        "border-white/5 text-white/70 hover:text-white hover:border-white/20",
+        "border-white/8 text-white/70 hover:text-white",
+        "hover:border-white/20 hover:bg-white/[0.04]",
+        "focus:outline-none focus:ring-2 focus:ring-[#38bdf8]/25",
         indent && "ml-3"
       )}
     >
       {active && (
         <motion.div
           layoutId="sidebar-active-pill"
-          className="absolute inset-0 -z-10 rounded-xl bg-[#0ea5ff] border border-[#38bdf8]"
-          style={{ boxShadow: "0 0 0 1px rgba(56,189,248,0.35)" }}
+          className={cx(
+            "absolute inset-0 -z-10 rounded-xl",
+            "bg-gradient-to-r from-[#0ea5ff] to-[#22d3ee]",
+            "border border-white/20"
+          )}
+          style={{
+            boxShadow:
+              "0 10px 30px rgba(14,165,255,0.18), inset 0 0 0 1px rgba(255,255,255,0.12)",
+          }}
           transition={{ duration: 0.2, ease }}
         />
       )}
-      <span className={cx("relative z-10", active && "text-[#020617] font-medium")}>
+
+      {/* küçük VIP shine */}
+      <span
+        className={cx(
+          "pointer-events-none absolute inset-0 rounded-xl opacity-0 transition-opacity",
+          "bg-[radial-gradient(70%_120%_at_30%_0%,rgba(255,255,255,0.18),transparent_60%)]",
+          active ? "opacity-100" : "group-hover:opacity-100"
+        )}
+      />
+
+      <span className={cx("relative z-10", active && "text-[#020617] font-semibold")}>
         {label}
       </span>
     </Link>
@@ -69,11 +88,26 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
+    <div
+      className={cx(
+        "rounded-2xl overflow-hidden border",
+        "border-white/10",
+        "bg-gradient-to-b from-white/[0.06] to-black/[0.35]",
+        "backdrop-blur-md"
+      )}
+      style={{
+        boxShadow:
+          "inset 0 0 0 1px rgba(255,255,255,0.05), 0 10px 30px rgba(0,0,0,0.25)",
+      }}
+    >
       <button
         type="button"
         onClick={onToggle}
-        className="w-full px-4 py-3 flex items-center justify-between text-xs font-semibold tracking-[0.12em] uppercase text-white/60"
+        className={cx(
+          "w-full px-4 py-3 flex items-center justify-between",
+          "text-xs font-semibold tracking-[0.12em] uppercase",
+          "text-white/60 hover:text-white/75 transition"
+        )}
       >
         <span>{title}</span>
         <motion.span
@@ -142,31 +176,66 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen flex bg-[#020617] text-white">
+      {/* VIP scrollbar + küçük premium dokunuşlar */}
+      <style jsx global>{`
+        .vip-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(56, 189, 248, 0.45) rgba(255, 255, 255, 0.06);
+        }
+        .vip-scroll::-webkit-scrollbar {
+          width: 10px;
+        }
+        .vip-scroll::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.06);
+          border-radius: 999px;
+        }
+        .vip-scroll::-webkit-scrollbar-thumb {
+          background: linear-gradient(
+            180deg,
+            rgba(56, 189, 248, 0.65),
+            rgba(14, 165, 255, 0.35)
+          );
+          border-radius: 999px;
+          border: 2px solid rgba(2, 6, 23, 0.65);
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+        }
+        .vip-scroll::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(
+            180deg,
+            rgba(56, 189, 248, 0.8),
+            rgba(14, 165, 255, 0.5)
+          );
+        }
+      `}</style>
+
       {/* SOL MENÜ */}
-      <aside className="w-64 shrink-0 sticky top-0 h-screen border-r border-white/10 bg-black/30 flex flex-col">
+      <aside
+        className={cx(
+          "w-64 shrink-0 sticky top-0 h-screen border-r border-white/10 flex flex-col",
+          "bg-gradient-to-b from-black/[0.55] via-black/[0.35] to-[#020617]/70",
+          "backdrop-blur-xl"
+        )}
+        style={{
+          boxShadow:
+            "inset -1px 0 0 rgba(255,255,255,0.06), 0 20px 60px rgba(0,0,0,0.35)",
+        }}
+      >
         {/* Başlık */}
-        <div className="px-4 py-4 border-b border-white/10">
-          <div className="text-sm font-semibold">OPSSTAY PANEL</div>
-          <div className="mt-1 text-[11px] text-white/60">
-            Misafir ön kontrol alanı
+        <div className="px-4 py-4 border-b border-white/10 relative overflow-hidden">
+          <div className="absolute inset-0 opacity-80 bg-[radial-gradient(80%_120%_at_20%_0%,rgba(56,189,248,0.18),transparent_55%)]" />
+          <div className="relative">
+            <div className="text-sm font-semibold tracking-wide">OPSSTAY PANEL</div>
+            <div className="mt-1 text-[11px] text-white/60">Misafir ön kontrol alanı</div>
           </div>
         </div>
 
         {/* Gruplar */}
-        <div className="flex-1 min-h-0 px-3 py-4 space-y-4 overflow-y-auto text-sm">
+        <div className="flex-1 min-h-0 px-3 py-4 space-y-4 overflow-y-auto text-sm vip-scroll">
           {/* ✅ Operasyon Kontrol Merkezi (ana sayfa) */}
-          <NavItem
-            href="/panel"
-            label="Operasyon Kontrol Merkezi"
-            active={pathname === "/panel"}
-          />
+          <NavItem href="/panel" label="Operasyon Kontrol Merkezi" active={pathname === "/panel"} />
 
           {/* Rezervasyon */}
-          <Section
-            title="Rezervasyon"
-            open={openRez}
-            onToggle={() => setOpenRez((v) => !v)}
-          >
+          <Section title="Rezervasyon" open={openRez} onToggle={() => setOpenRez((v) => !v)}>
             <NavItem
               href="/panel/rezervasyon"
               label="Rezervasyon Oluştur"
@@ -184,35 +253,19 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
             />
           </Section>
 
-          {/* Kara Liste */}
-          <Section
-            title="Kara Liste"
-            open={openBlacklist}
-            onToggle={() => setOpenBlacklist((v) => !v)}
-          >
+          {/* Uyarı Listesi */}
+          <Section title="Uyarı Listesi" open={openBlacklist} onToggle={() => setOpenBlacklist((v) => !v)}>
             <NavItem
               href="/panel/kayit/ekle"
-              label="Kara Liste'ye Aktar"
+              label="Uyarı Listesine Aktar"
               active={pathname === "/panel/kayit/ekle"}
             />
-            <NavItem
-              href="/panel/kayitlar"
-              label="Kayıtlar"
-              active={pathname === "/panel/kayitlar"}
-            />
-            <NavItem
-              href="/panel/talepler"
-              label="Talepler"
-              active={pathname === "/panel/talepler"}
-            />
+            <NavItem href="/panel/kayitlar" label="Kayıtlar" active={pathname === "/panel/kayitlar"} />
+            <NavItem href="/panel/talepler" label="Talepler" active={pathname === "/panel/talepler"} />
           </Section>
 
           {/* İstatistikler */}
-          <Section
-            title="İstatistikler"
-            open={openStats}
-            onToggle={() => setOpenStats((v) => !v)}
-          >
+          <Section title="İstatistikler" open={openStats} onToggle={() => setOpenStats((v) => !v)}>
             <NavItem
               href="/panel/istatistikler/happy-moons"
               label="Happy Moons"
@@ -234,26 +287,30 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
             <div className="text-xs text-white/40">Oturum bilgisi alınıyor...</div>
           ) : me ? (
             <div className="mb-3 text-xs space-y-1">
-              <div className="text-sm font-semibold text-white">
-                {me.full_name}
-              </div>
+              <div className="text-sm font-semibold text-white">{me.full_name}</div>
               <div className="text-white/60">
-                {me.restaurant_name} ·{" "}
-                {me.role === "manager" ? "Müdür" : "Personel"}
+                {me.restaurant_name} · {me.role === "manager" ? "Müdür" : "Personel"}
               </div>
               <div className="text-[11px] text-white/40">{me.email}</div>
             </div>
           ) : (
-            <div className="mb-3 text-xs text-white/40">
-              Oturum bulunamadı.
-            </div>
+            <div className="mb-3 text-xs text-white/40">Oturum bulunamadı.</div>
           )}
 
           <button
             type="button"
             onClick={handleLogout}
             disabled={loggingOut}
-            className="w-full rounded-xl bg-white/5 border border-white/20 px-3 py-2 text-sm text-white hover:bg-white/10 disabled:opacity-60"
+            className={cx(
+              "w-full rounded-xl px-3 py-2 text-sm text-white transition",
+              "border border-white/15 bg-gradient-to-b from-white/[0.08] to-white/[0.03]",
+              "hover:from-white/[0.12] hover:to-white/[0.05]",
+              "disabled:opacity-60"
+            )}
+            style={{
+              boxShadow:
+                "inset 0 0 0 1px rgba(255,255,255,0.06), 0 10px 30px rgba(0,0,0,0.25)",
+            }}
           >
             {loggingOut ? "Çıkış yapılıyor..." : "Çıkış yap"}
           </button>

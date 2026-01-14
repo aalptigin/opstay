@@ -62,9 +62,47 @@ function normalizeMatch(row: any) {
   const note = s(pick(row, ["note", "blacklist_note", "customer_note", "summary", "not"]));
   const risk_level = s(pick(row, ["risk_level", "risk", "level"]));
   const restaurant = s(pick(row, ["restaurant", "venue", "otel", "hotel"]));
-  const date = s(pick(row, ["date", "tarih", "created_at", "entry_date"]));
+  const restaurant_name = s(pick(row, ["restaurant_name", "venue_name", "otel_adi", "hotel_name"]));
+  
+  // ✅ GOOGLE SHEETS'TEKİ GERÇEK ALAN ADLARINI KULLAN
+  // Google Sheets'inizdeki Blacklist sheet'inde "authorized_name" alanı ekleyen kişiyi içeriyor
+  const added_by_name = s(pick(row, [
+    "authorized_name",    // ✅ Google Sheets'teki ana alan
+    "officer_name",       // ✅ Alternatif alan
+    "added_by_name", 
+    "added_by", 
+    "created_by", 
+    "author", 
+    "user", 
+    "operator"
+  ]));
+  
+  // ✅ Google Sheets'te "created_at" alanı tarihi içeriyor
+  const added_at = s(pick(row, [
+    "created_at",         // ✅ Google Sheets'teki ana alan
+    "added_at", 
+    "date_added", 
+    "entry_date",
+    "timestamp", 
+    "record_date"
+  ]));
 
-  return { full_name, phone, note, risk_level, restaurant, date };
+  // ✅ added_by alanını added_by_name ile aynı yap
+  const added_by = added_by_name;
+
+  return { 
+    full_name, 
+    phone, 
+    note, 
+    risk_level, 
+    restaurant: restaurant || restaurant_name,
+    restaurant_name: restaurant_name || restaurant,
+    // ✅ GOOGLE SHEETS'TEKİ GERÇEK ALANLARI DÖNDÜR
+    added_by,
+    added_by_name,
+    added_at,
+    created_at: added_at // created_at'i de aynı değerle doldur
+  };
 }
 
 export async function POST(req: Request) {

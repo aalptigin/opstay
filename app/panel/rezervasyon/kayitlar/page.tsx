@@ -75,6 +75,12 @@ function normReservationRow(r: Row) {
   const customer_phone = s(pick(r, ["customer_phone", "phone", "guest_phone"]));
 
   const kids_u7 = s(pick(r, ["kids_u7", "child_u7", "children_u7"]));
+
+  // kişi sayısı (toplam) - farklı olası kolon isimleri
+  const people_count = s(
+    pick(r, ["people_count", "guest_count", "total_guests", "total_people", "person_count", "kisi_sayisi", "kisi_sayisi_toplam"])
+  );
+
   const officer_name = s(pick(r, ["officer_name", "authorized_name"]));
   const officer_email = s(pick(r, ["officer_email", "authorized_email"]));
 
@@ -90,6 +96,7 @@ function normReservationRow(r: Row) {
     customer_full_name,
     customer_phone,
     kids_u7,
+    people_count,
     officer_name,
     officer_email,
     note,
@@ -107,6 +114,9 @@ function SkeletonCell() {
 function SkeletonRow() {
   return (
     <tr className="border-b border-white/10">
+      <td className="px-4 py-3">
+        <SkeletonCell />
+      </td>
       <td className="px-4 py-3">
         <SkeletonCell />
       </td>
@@ -246,6 +256,8 @@ export default function Page() {
         r.time,
         r.customer_full_name,
         r.customer_phone,
+        r.people_count,
+        r.kids_u7,
         r.officer_name,
         r.officer_email,
         r.note,
@@ -276,7 +288,7 @@ export default function Page() {
   }, [loading, filtered.length, hasActiveFilters]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 page-no-scroll">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Rezervasyon Kayıtları</h1>
@@ -346,27 +358,32 @@ export default function Page() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_360px] gap-4">
-        <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+      <div className="grid lg:grid-cols-[1fr_360px] gap-4 viewport-grid">
+        {/* ✅ Sol kartı flex-col yaptık: scroll alanı kalan yüksekliği düzgün alsın ve alttaki satır kesilmesin */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden flex flex-col min-h-0">
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
             <div className="text-sm text-white/70">{headerText}</div>
             {err ? <div className="text-sm text-red-300">{err}</div> : null}
           </div>
 
-          <div className="overflow-auto">
-            <table className="min-w-[1100px] w-full text-sm">
-              <thead className="bg-black/20 text-white/70 sticky top-0">
-                <tr>
-                  <th className="text-left px-4 py-3">Restoran</th>
-                  <th className="text-left px-4 py-3">Rez. No</th>
-                  <th className="text-left px-4 py-3">Masa</th>
-                  <th className="text-left px-4 py-3">Gün/Ay/Yıl</th>
-                  <th className="text-left px-4 py-3">Saat</th>
-                  <th className="text-left px-4 py-3">Müşteri</th>
-                  <th className="text-left px-4 py-3">Telefon</th>
-                  <th className="text-left px-4 py-3">Çocuk (7-)</th>
-                  <th className="text-left px-4 py-3">Yetkili</th>
-                  <th className="text-left px-4 py-3">Not</th>
+          {/* ✅ Scroll alanı flex-1 + min-h-0: en alttaki müşteri görünür
+              ✅ pb ekledik: horizontal scrollbar/alt boşluk çakışmasın */}
+          <div className="overflow-auto flex-1 min-h-0 pb-3 table-scroll vip-scroll">
+            <table className="min-w-[1200px] w-full text-sm">
+              {/* ✅ Şeffaf header yerine solid arka plan + z-index */}
+              <thead className="text-white/70 sticky top-0 z-20">
+                <tr className="border-b border-white/10">
+                  <th className="text-left px-4 py-3 bg-[#0b1220]">Restoran</th>
+                  <th className="text-left px-4 py-3 bg-[#0b1220]">Rez. No</th>
+                  <th className="text-left px-4 py-3 bg-[#0b1220]">Masa</th>
+                  <th className="text-left px-4 py-3 bg-[#0b1220]">Gün/Ay/Yıl</th>
+                  <th className="text-left px-4 py-3 bg-[#0b1220]">Saat</th>
+                  <th className="text-left px-4 py-3 bg-[#0b1220]">Müşteri</th>
+                  <th className="text-left px-4 py-3 bg-[#0b1220]">Telefon</th>
+                  <th className="text-left px-4 py-3 bg-[#0b1220]">Kişi</th>
+                  <th className="text-left px-4 py-3 bg-[#0b1220]">Çocuk (7-)</th>
+                  <th className="text-left px-4 py-3 bg-[#0b1220]">Yetkili</th>
+                  <th className="text-left px-4 py-3 bg-[#0b1220]">Not</th>
                 </tr>
               </thead>
 
@@ -379,7 +396,7 @@ export default function Page() {
                   </>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td className="p-0" colSpan={10}>
+                    <td className="p-0" colSpan={11}>
                       <EmptyState
                         title={hasActiveFilters ? "Sonuç bulunamadı" : "Henüz kayıt yok"}
                         desc={
@@ -394,6 +411,7 @@ export default function Page() {
                   filtered.map((r, idx) => {
                     const officer = s(r.officer_name) || s(r.officer_email) || "-";
                     const kids = s(r.kids_u7) || "-";
+                    const ppl = s(r.people_count) || "-";
                     const key = String(r.reservation_id || r.id || idx);
                     const isSelected = key === selectedKey;
 
@@ -413,6 +431,7 @@ export default function Page() {
                         <td className="px-4 py-3">{normalizeTime(r.time) || "-"}</td>
                         <td className="px-4 py-3">{s(r.customer_full_name) || "-"}</td>
                         <td className="px-4 py-3">{s(r.customer_phone) || "-"}</td>
+                        <td className="px-4 py-3">{ppl}</td>
                         <td className="px-4 py-3">{kids}</td>
                         <td className="px-4 py-3">{officer}</td>
                         <td className="px-4 py-3">{s(r.note) || "-"}</td>
@@ -466,6 +485,12 @@ export default function Page() {
                     <div className="text-xs text-white/60">Çocuk (7-)</div>
                     <div className="text-white/80 mt-1">{s(selectedRow.kids_u7) || "-"}</div>
                   </div>
+
+                  <div>
+                    <div className="text-xs text-white/60">Kişi</div>
+                    <div className="text-white/80 mt-1">{s(selectedRow.people_count) || "-"}</div>
+                  </div>
+                  <div />
                 </div>
 
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -477,9 +502,7 @@ export default function Page() {
 
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <div className="text-xs text-white/60">Not</div>
-                  <div className="text-white/80 mt-2 whitespace-pre-wrap">
-                    {s(selectedRow.note) || "-"}
-                  </div>
+                  <div className="text-white/80 mt-2 whitespace-pre-wrap">{s(selectedRow.note) || "-"}</div>
                 </div>
 
                 <button
@@ -493,6 +516,64 @@ export default function Page() {
           </div>
         </div>
       </div>
+
+      {/* Scrollbar gizleme kaldırıldı; VIP scrollbar stili duruyor */}
+      <style jsx global>{`
+        /* Bu sayfada dış scroll'u kapatıp, scroll'u tablo alanına taşıyoruz */
+        .page-no-scroll {
+          height: calc(100dvh - 24px);
+        }
+        .viewport-grid {
+          height: calc(100dvh - 260px);
+        }
+
+        /* VIP scroll görünümü (WebKit + Firefox) */
+        .vip-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(255, 255, 255, 0.22) rgba(255, 255, 255, 0.06);
+        }
+        .vip-scroll::-webkit-scrollbar {
+          width: 10px;
+          height: 10px;
+        }
+        .vip-scroll::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.06);
+          border-radius: 999px;
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+        }
+        .vip-scroll::-webkit-scrollbar-thumb {
+          background: linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.34),
+            rgba(255, 255, 255, 0.16)
+          );
+          border-radius: 999px;
+          border: 2px solid rgba(0, 0, 0, 0.35);
+          box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+        }
+        .vip-scroll::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.44),
+            rgba(255, 255, 255, 0.22)
+          );
+        }
+        .vip-scroll::-webkit-scrollbar-corner {
+          background: transparent;
+        }
+
+        @media (max-width: 1024px) {
+          .viewport-grid {
+            height: auto;
+          }
+          .page-no-scroll {
+            height: auto;
+          }
+          .table-scroll {
+            max-height: 520px;
+          }
+        }
+      `}</style>
     </div>
   );
 }
