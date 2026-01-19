@@ -118,6 +118,12 @@ function NavBar() {
             >
               Hakkımızda
             </Link>
+            <Link
+              href="/pricing"
+              className="hover:text-white transition-all relative after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-0.5 after:bg-[#0ea5ff] after:transition-all hover:after:w-full"
+            >
+              Fiyatlandırma
+            </Link>
           </div>
           <Link
             href="/login"
