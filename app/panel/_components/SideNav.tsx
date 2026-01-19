@@ -69,6 +69,7 @@ export default function SideNav() {
           { label: "Rezervasyon Oluştur", href: "/panel/rezervasyon" },
           { label: "Rezervasyon Düzenle", href: "/panel/rezervasyon/duzenle" },
           { label: "Rezervasyon Kayıtları", href: "/panel/rezervasyon/kayitlar" },
+          { label: "SMS Logları", href: "/panel/sms-log" },
         ],
       },
       {
@@ -78,6 +79,14 @@ export default function SideNav() {
           { label: "Uyarı Listesine Aktar", href: "/panel/kayit/ekle" },
           { label: "Kayıtlar", href: "/panel/kayit/kayitlar" },
           { label: "Talepler", href: "/panel/talepler", roles: ["manager"] },
+        ],
+      },
+      {
+        id: "degerlendirme",
+        title: "Değerlendirme",
+        items: [
+          { label: "Puanlamalar", href: "/panel/ratings" },
+          { label: "Geri Aramalar", href: "/panel/callbacks" },
         ],
       },
       {
@@ -175,6 +184,23 @@ export default function SideNav() {
         </div>
 
         <nav className="mt-4 space-y-2 vip-scroll max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
+          {/* Ana Sayfa Linki */}
+          <Link
+            href="/panel"
+            className={cx(
+              "block rounded-2xl px-4 py-3 text-sm font-medium transition border relative overflow-hidden mb-3",
+              "focus:outline-none focus:ring-2 focus:ring-[#38bdf8]/25",
+              pathname === "/panel"
+                ? "text-white border-white/20 bg-gradient-to-r from-white/10 to-white/5 shadow-lg"
+                : "border-white/8 text-white/70 hover:bg-white/5 hover:text-white hover:border-white/15"
+            )}
+          >
+            {pathname === "/panel" && (
+              <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_120%_at_30%_0%,rgba(255,255,255,0.12),transparent_60%)]" />
+            )}
+            <span className="relative">Operasyon Kontrol Merkezi</span>
+          </Link>
+
           {groups.map((g) => {
             const isOpen = !!openGroups[g.id];
             return (
@@ -199,7 +225,14 @@ export default function SideNav() {
                   )}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-white/85">{g.title}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-white/85">{g.title}</span>
+                      {g.id === "degerlendirme" && (
+                        <span className="rounded-md bg-gradient-to-r from-cyan-500 to-blue-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
+                          NEW
+                        </span>
+                      )}
+                    </div>
                     <span className={cx("text-white/60 transition", isOpen && "rotate-180")}>▾</span>
                   </div>
                 </button>
@@ -232,9 +265,9 @@ export default function SideNav() {
                                 style={
                                   active
                                     ? {
-                                        boxShadow:
-                                          "0 10px 30px rgba(14,165,255,0.16), inset 0 0 0 1px rgba(255,255,255,0.12)",
-                                      }
+                                      boxShadow:
+                                        "0 10px 30px rgba(14,165,255,0.16), inset 0 0 0 1px rgba(255,255,255,0.12)",
+                                    }
                                     : undefined
                                 }
                               >

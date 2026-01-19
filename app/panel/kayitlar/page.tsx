@@ -1,14 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
 
-type RowAny = Record<string, any>;
-
-function cx(...a: Array<string | false | undefined | null>) {
-  return a.filter(Boolean).join(" ");
-}
+type Row = Record<string, any>;
 
 function s(v: any) {
   return String(v ?? "").trim();
@@ -18,61 +12,39 @@ function pick(obj: any, keys: string[]) {
   for (const k of keys) {
     const v = obj?.[k];
     if (v === null || v === undefined) continue;
-    const out = String(v).trim();
-    if (out !== "") return v;
+    const str = String(v).trim();
+    if (str !== "") return v;
   }
   return "";
 }
 
-function normRestaurant(v: any) {
-  const raw = s(v);
-  const r = raw.toLowerCase().replace(/\s+/g, " ").trim();
-  if (!r) return "";
-
-  if (
-    r === "happy moons" ||
-    r === "happy_moons" ||
-    r === "happy-moons" ||
-    r === "happymoons" ||
-    r === "happy moon"
-  )
-    return "Happy Moons";
-
-  if (r === "roof" || r === "roof restaurant") return "Roof";
-
-  return raw;
+// dd/MM/yyyy
+function isDDMMYYYY(x: string) {
+  return /^\d{2}\/\d{2}\/\d{4}$/.test(x);
 }
 
-function normalizeDateYMD(v: any) {
+function normalizeDate(v: any) {
   const raw = s(v);
   if (!raw) return "";
+  if (isDDMMYYYY(raw)) return raw;
 
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) {
-    const [dd, mm, yyyy] = raw.split("/");
-    return `${yyyy}-${mm}-${dd}`;
-  }
-
-  if (/^\d{2}\.\d{2}\.\d{4}$/.test(raw)) {
-    const [dd, mm, yyyy] = raw.split(".");
-    return `${yyyy}-${mm}-${dd}`;
-  }
-
-  if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) return raw.slice(0, 10);
+  // 29.12.2025 -> 29/12/2025
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(raw)) return raw.replace(/\./g, "/");
 
   const d = new Date(raw);
   if (!Number.isNaN(d.getTime())) {
-    const yyyy = String(d.getFullYear());
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
+    const out = new Intl.DateTimeFormat("tr-TR", {
+      timeZone: "Europe/Istanbul",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(d);
+    return out.replace(/\./g, "/");
   }
-
   return raw;
 }
 
-function normalizeTimeHHmm(v: any) {
+function normalizeTime(v: any) {
   const raw = s(v);
   if (!raw) return "";
   if (/^\d{2}:\d{2}$/.test(raw)) return raw;
@@ -80,396 +52,519 @@ function normalizeTimeHHmm(v: any) {
   const m = raw.match(/^(\d{1,2}):(\d{2})/);
   if (m) return `${String(parseInt(m[1], 10)).padStart(2, "0")}:${m[2]}`;
 
-  if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) return raw.slice(11, 16);
-
   const d = new Date(raw);
   if (!Number.isNaN(d.getTime())) {
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mm = String(d.getMinutes()).padStart(2, "0");
-    return `${hh}:${mm}`;
+    return new Intl.DateTimeFormat("tr-TR", {
+      timeZone: "Europe/Istanbul",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(d);
   }
-
   return raw;
 }
 
-function formatTRDateFromYMD(ymd: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd || "-";
-  const [yyyy, mm, dd] = ymd.split("-");
-  return `${dd}.${mm}.${yyyy}`;
-}
+function normReservationRow(r: Row) {
+  const restaurant = s(pick(r, ["restaurant", "restaurant_name"]));
+  const reservation_no = s(
+    pick(r, ["reservation_no", "reservation_n0", "reservationNumber", "reservation_id"])
+  );
+  const table_no = s(pick(r, ["table_no", "table_n0", "masa_no"]));
 
-function todayYMD() {
-  const now = new Date();
-  const yyyy = String(now.getFullYear());
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
+  const date = normalizeDate(pick(r, ["date", "gun_ay_yil"]));
+  const time = normalizeTime(pick(r, ["time", "saat"]));
 
-function rowId(row: RowAny) {
-  return s(pick(row, ["record_id", "id", "row_id", "uuid"]));
-}
+  const customer_full_name = s(pick(r, ["customer_full_name", "full_name", "guest_full_name"]));
+  const customer_phone = s(pick(r, ["customer_phone", "phone", "guest_phone"]));
 
-function rowRestaurant(row: RowAny) {
-  return normRestaurant(pick(row, ["restaurant", "restaurant_name"]));
-}
+  const kids_u7 = s(pick(r, ["kids_u7", "child_u7", "children_u7"]));
 
-function rowDateYMD(row: RowAny) {
-  const d = normalizeDateYMD(pick(row, ["date", "created_date", "gun_ay_yil", "dayMonthYear"]));
-  const dt = s(pick(row, ["datetime", "created_at", "createdAt"]));
-  const d2 = dt ? normalizeDateYMD(dt.slice(0, 10)) : "";
-  return d || d2;
-}
-
-function rowTimeHHmm(row: RowAny) {
-  const t = normalizeTimeHHmm(pick(row, ["time", "created_time", "saat"]));
-  const dt = s(pick(row, ["datetime", "created_at", "createdAt"]));
-  const t2 = dt ? normalizeTimeHHmm(dt.slice(11, 16)) : "";
-  return t || t2;
-}
-
-function rowCustomer(row: RowAny) {
-  return s(pick(row, ["full_name", "customer_full_name", "subject_person_name", "guest_full_name", "name_surname"]));
-}
-
-function rowPhone(row: RowAny) {
-  return s(pick(row, ["phone", "customer_phone", "subject_phone", "guest_phone", "telefon"]));
-}
-
-function rowOfficer(row: RowAny) {
-  return s(
-    pick(row, [
-      "officer_name",
-      "authorized_name",
-      "created_by_name",
-      "added_by_name",
-      "actor_name",
-      "staff_full_name",
+  // kişi sayısı (toplam) - farklı olası kolon isimleri
+  const people_count = s(
+    pick(r, [
+      "people_count",
+      "guest_count",
+      "total_guests",
+      "total_people",
+      "person_count",
+      "kisi_sayisi",
+      "kisi_sayisi_toplam",
     ])
+  );
+
+  const officer_name = s(pick(r, ["officer_name", "authorized_name"]));
+  const officer_email = s(pick(r, ["officer_email", "authorized_email"]));
+
+  const note = s(pick(r, ["note", "customer_note"]));
+
+  return {
+    ...r,
+    restaurant,
+    reservation_no,
+    table_no,
+    date,
+    time,
+    customer_full_name,
+    customer_phone,
+    kids_u7,
+    people_count,
+    officer_name,
+    officer_email,
+    note,
+  };
+}
+
+function cx(...a: Array<string | false | undefined | null>) {
+  return a.filter(Boolean).join(" ");
+}
+
+function SkeletonCell() {
+  return <div className="h-3 w-full rounded bg-white/10 animate-pulse" />;
+}
+
+function SkeletonRow() {
+  return (
+    <tr className="border-b border-white/10">
+      <td className="px-4 py-3">
+        <SkeletonCell />
+      </td>
+      <td className="px-4 py-3">
+        <SkeletonCell />
+      </td>
+      <td className="px-4 py-3">
+        <SkeletonCell />
+      </td>
+      <td className="px-4 py-3">
+        <SkeletonCell />
+      </td>
+      <td className="px-4 py-3">
+        <SkeletonCell />
+      </td>
+      <td className="px-4 py-3">
+        <SkeletonCell />
+      </td>
+      <td className="px-4 py-3">
+        <SkeletonCell />
+      </td>
+      <td className="px-4 py-3">
+        <SkeletonCell />
+      </td>
+      <td className="px-4 py-3">
+        <SkeletonCell />
+      </td>
+      <td className="px-4 py-3">
+        <SkeletonCell />
+      </td>
+      <td className="px-4 py-3">
+        <SkeletonCell />
+      </td>
+    </tr>
   );
 }
 
-function rowNote(row: RowAny) {
-  const altKey = ["black", "list", "_note"].join("");
-  return s(pick(row, ["note", altKey, "customer_note", "summary", "reason", "not", "aciklama"]));
-}
-
-function rowRisk(row: RowAny) {
-  return s(pick(row, ["risk_level", "risk", "severity", "level"]));
-}
-
-function rowStatus(row: RowAny) {
-  return s(pick(row, ["status", "state", "type", "mode"])).toLowerCase();
-}
-
-function isAlertListRow(row: RowAny) {
-  const st = rowStatus(row);
-
-  // tolerant işaretleme: "black..." veya "kara..." gibi backend varyasyonlarını yakalar
-  if (st.includes("black")) return true;
-  if (st.includes("kara")) return true;
-  if (st === "bl" || st === "b") return true;
-
-  const flag =
-    (row as any).is_blacklist ??
-    (row as any).isBlacklisted ??
-    (row as any).blacklist ??
-    (row as any).blacklisted ??
-    null;
-
-  if (flag === true) return true;
-
-  const lt = s(pick(row, ["list_type", "listType"])).toLowerCase();
-  if (lt.includes("black")) return true;
-
-  return false;
-}
-
-async function fetchRows(): Promise<RowAny[]> {
-  const res = await fetch("/api/records", { cache: "no-store" });
-  const data = await res.json().catch(() => ({}));
-  const rows = Array.isArray(data) ? data : Array.isArray(data?.rows) ? data.rows : [];
-  return rows;
-}
-
-const ease = [0.22, 1, 0.36, 1] as const;
-
-function StatCard({
-  label,
-  value,
-  sub,
-}: {
-  label: string;
-  value: string | number;
-  sub?: string;
-}) {
+function EmptyState({ title, desc }: { title: string; desc: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5">
-      <div className="text-xs text-white/55 tracking-[0.18em] font-semibold">{label}</div>
-      <div className="mt-2 text-3xl font-extrabold text-white">{value}</div>
-      {sub ? <div className="mt-1 text-sm text-white/60">{sub}</div> : null}
+    <div className="px-4 py-10">
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
+        <div className="mx-auto mb-3 h-10 w-10 rounded-xl bg-white/10" />
+        <div className="text-white font-semibold">{title}</div>
+        <div className="mt-1 text-sm text-white/60">{desc}</div>
+      </div>
     </div>
   );
 }
 
-export default function KayitlarPage() {
+export default function Page() {
+  const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
-  const [rows, setRows] = useState<RowAny[]>([]);
-  const [q, setQ] = useState("");
-  const [restaurantFilter, setRestaurantFilter] = useState<"all" | "happy-moons" | "roof">("all");
+  const [err, setErr] = useState<string>("");
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const r = await fetchRows();
-      setRows(Array.isArray(r) ? r : []);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // filtreler
+  const [q, setQ] = useState("");
+  const [restaurant, setRestaurant] = useState<string>("all");
+  const [date, setDate] = useState<string>(""); // dd/MM/yyyy
+
+  // küçük UX iyileştirmeleri
+  const [selectedKey, setSelectedKey] = useState<string>("");
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let alive = true;
 
-  const alertRows = useMemo(() => {
-    const list = (rows || []).filter((r) => isAlertListRow(r));
-    return list.slice().sort((a, b) => {
-      const ka = `${rowDateYMD(a)} ${rowTimeHHmm(a)}`;
-      const kb = `${rowDateYMD(b)} ${rowTimeHHmm(b)}`;
-      return kb.localeCompare(ka);
+    async function load() {
+      setLoading(true);
+      setErr("");
+
+      try {
+        const r1 = await fetch("/api/reservations", { cache: "no-store" });
+        const j1 = await r1.json();
+
+        if (!r1.ok) throw new Error(j1?.error || "Rezervasyonlar alınamadı");
+
+        const rr = Array.isArray(j1?.rows) ? j1.rows : [];
+        const normalized = rr.map(normReservationRow);
+
+        if (!alive) return;
+        setRows(normalized);
+      } catch (e: any) {
+        if (!alive) return;
+        setErr(e?.message || "Yükleme hatası");
+      } finally {
+        if (!alive) return;
+        setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  async function reload() {
+    setRefreshing(true);
+    setErr("");
+    try {
+      const r1 = await fetch("/api/reservations", { cache: "no-store" });
+      const j1 = await r1.json();
+      if (!r1.ok) throw new Error(j1?.error || "Rezervasyonlar alınamadı");
+
+      const rr = Array.isArray(j1?.rows) ? j1.rows : [];
+      const normalized = rr.map(normReservationRow);
+
+      setRows(normalized);
+    } catch (e: any) {
+      setErr(e?.message || "Yükleme hatası");
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  const restaurants = useMemo(() => {
+    const set = new Set<string>();
+    rows.forEach((r) => {
+      const x = s(r.restaurant);
+      if (x) set.add(x);
     });
+    return ["all", ...Array.from(set)];
   }, [rows]);
 
   const filtered = useMemo(() => {
-    const query = s(q).toLowerCase();
+    const qq = q.trim().toLowerCase();
+    const d = date.trim();
 
-    return alertRows.filter((r) => {
-      const rest = rowRestaurant(r);
-      const restLower = rest.toLowerCase();
+    return rows.filter((r) => {
+      if (restaurant !== "all" && s(r.restaurant) !== restaurant) return false;
+      if (d && s(r.date) !== d) return false;
 
-      if (restaurantFilter === "happy-moons" && restLower !== "happy moons") return false;
-      if (restaurantFilter === "roof" && restLower !== "roof") return false;
-
-      if (!query) return true;
+      if (!qq) return true;
 
       const hay = [
-        rest,
-        rowDateYMD(r),
-        rowTimeHHmm(r),
-        rowCustomer(r),
-        rowPhone(r),
-        rowOfficer(r),
-        rowRisk(r),
-        rowNote(r),
-        rowId(r),
+        r.restaurant,
+        r.reservation_no,
+        r.table_no,
+        r.date,
+        r.time,
+        r.customer_full_name,
+        r.customer_phone,
+        r.people_count,
+        r.kids_u7,
+        r.officer_name,
+        r.officer_email,
+        r.note,
       ]
         .map((x) => s(x).toLowerCase())
         .join(" | ");
 
-      return hay.includes(query);
+      return hay.includes(qq);
     });
-  }, [alertRows, q, restaurantFilter]);
+  }, [rows, q, restaurant, date]);
 
-  const total = alertRows.length;
-  const shown = filtered.length;
+  const selectedRow = useMemo(() => {
+    if (!selectedKey) return null;
+    return filtered.find((r, idx) => {
+      const key = String(r.reservation_id || r.id || idx);
+      return key === selectedKey;
+    });
+  }, [filtered, selectedKey]);
 
-  const kpis = useMemo(() => {
-    const today = todayYMD();
-    const todayCount = alertRows.filter((r) => rowDateYMD(r) === today).length;
+  const hasActiveFilters = useMemo(() => {
+    return q.trim() !== "" || restaurant !== "all" || date.trim() !== "";
+  }, [q, restaurant, date]);
 
-    const riskHigh = alertRows.filter((r) => {
-      const x = s(rowRisk(r)).toLowerCase();
-      if (!x) return false;
-      if (x.includes("high") || x.includes("yüksek")) return true;
-      if (x === "3" || x === "4" || x === "5") return true;
-      return false;
-    }).length;
-
-    return { todayCount, riskHigh };
-  }, [alertRows]);
+  const headerText = useMemo(() => {
+    if (loading) return "Yükleniyor...";
+    if (filtered.length === 0) return hasActiveFilters ? "Sonuç yok" : "Kayıt yok";
+    return `Toplam: ${filtered.length}`;
+  }, [loading, filtered.length, hasActiveFilters]);
 
   return (
-    <div className="w-full">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+    <div className="space-y-4 page-no-scroll">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <div className="text-white/60 text-xs tracking-[0.35em] font-semibold">KAYITLAR</div>
-          <motion.h1
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, ease }}
-            className="mt-2 text-2xl md:text-3xl font-extrabold text-white"
-          >
-            Uyarı Listesi Kayıtları
-          </motion.h1>
-          <p className="mt-2 text-sm text-white/60">
-            Uyarı listesine eklenen misafirleri burada filtreleyip hızlıca inceleyebilirsiniz.
-          </p>
+          <h1 className="text-2xl font-semibold">Rezervasyon Kayıtları</h1>
+          <p className="text-white/60 text-sm">Filtrele, ara ve gerekirse kara liste ile çapraz kontrol et.</p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Link
-            href="/panel/kayit/ekle"
-            className={cx(
-              "inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm",
-              "border-white/10 bg-white/5 text-white/90 hover:bg-white/10 transition"
-            )}
-          >
-            Uyarı Listesi&apos;ne Aktar
-          </Link>
-
+        <div className="flex gap-2">
           <button
-            onClick={load}
-            className={cx(
-              "inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm",
-              "border-white/10 bg-white/5 text-white/90 hover:bg-white/10 transition",
-              loading ? "opacity-60 cursor-not-allowed" : ""
-            )}
-            disabled={loading}
+            onClick={() => {
+              setQ("");
+              setRestaurant("all");
+              setDate("");
+            }}
+            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
           >
-            {loading ? "Yenileniyor..." : "Yenile"}
+            Filtreyi temizle
+          </button>
+          <button
+            onClick={reload}
+            disabled={refreshing}
+            className={cx(
+              "rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10",
+              refreshing ? "opacity-60 cursor-not-allowed" : ""
+            )}
+          >
+            {refreshing ? "Yenileniyor..." : "Yenile"}
           </button>
         </div>
       </div>
 
-      {/* KPI CARDS */}
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45 }}
-        className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3"
-      >
-        <StatCard label="TOPLAM" value={total} sub="Uyarı listesi kaydı" />
-        <StatCard label="BUGÜN" value={kpis.todayCount} sub={`Tarih: ${formatTRDateFromYMD(todayYMD())}`} />
-        <StatCard label="RİSK" value={kpis.riskHigh} sub="Yüksek risk (yaklaşık)" />
-      </motion.div>
-
-      {/* Filters */}
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-          <div className="text-xs text-white/60 mb-2">Arama</div>
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="İsim, telefon, not, risk, tarih..."
-            className={cx(
-              "w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm",
-              "text-white placeholder:text-white/30 outline-none focus:border-white/20"
-            )}
-          />
-          <div className="mt-2 text-xs text-white/45">İpucu: Telefon veya isim parçalarıyla arayabilirsiniz.</div>
-        </div>
-
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-          <div className="text-xs text-white/60 mb-2">Restoran</div>
-          <select
-            value={restaurantFilter}
-            onChange={(e) => setRestaurantFilter(e.target.value as any)}
-            className={cx(
-              "w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm",
-              "text-white outline-none focus:border-white/20"
-            )}
-          >
-            <option value="all">Tümü</option>
-            <option value="happy-moons">Happy Moons</option>
-            <option value="roof">Roof</option>
-          </select>
-          <div className="mt-2 text-xs text-white/45">Not: “Tümü” tüm restoranları gösterir.</div>
-        </div>
-
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-          <div className="text-xs text-white/60 mb-2">Özet</div>
-          <div className="text-sm text-white/90">
-            Toplam: <span className="font-semibold">{total}</span> / Görünen:{" "}
-            <span className="font-semibold">{shown}</span>
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+        <div className="grid gap-3 md:grid-cols-4">
+          <div className="md:col-span-2">
+            <label className="text-xs text-white/60">Arama</label>
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Rez. no, müşteri, telefon, not..."
+              className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none focus:border-white/20"
+            />
           </div>
-          {loading ? <div className="mt-2 text-xs text-white/40">Yükleniyor…</div> : null}
+
+          <div>
+            <label className="text-xs text-white/60">Restoran</label>
+            <select
+              value={restaurant}
+              onChange={(e) => setRestaurant(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none focus:border-white/20"
+            >
+              {restaurants.map((x) => (
+                <option key={x} value={x}>
+                  {x === "all" ? "Tümü" : x}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs text-white/60">Gün/Ay/Yıl (dd/MM/yyyy)</label>
+            <input
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              placeholder="29/12/2025"
+              className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none focus:border-white/20"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-[1100px] w-full text-sm">
-            <thead>
-              <tr className="text-white/60">
-                <th className="px-4 py-3 text-left font-medium">Restoran</th>
-                <th className="px-4 py-3 text-left font-medium">Gün/Ay/Yıl</th>
-                <th className="px-4 py-3 text-left font-medium">Saat</th>
-                <th className="px-4 py-3 text-left font-medium">Misafir</th>
-                <th className="px-4 py-3 text-left font-medium">Telefon</th>
-                <th className="px-4 py-3 text-left font-medium">Risk</th>
-                <th className="px-4 py-3 text-left font-medium">Yetkili</th>
-                <th className="px-4 py-3 text-left font-medium">Not</th>
-                <th className="px-4 py-3 text-left font-medium">Durum</th>
-              </tr>
-            </thead>
+      <div className="grid lg:grid-cols-[1fr_360px] gap-4 viewport-grid">
+        <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden flex flex-col min-h-0">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+            <div className="text-sm text-white/70">{headerText}</div>
+            {err ? <div className="text-sm text-red-300">{err}</div> : null}
+          </div>
 
-            <tbody>
-              {loading ? (
-                Array.from({ length: 8 }).map((_, i) => (
-                  <tr key={i} className="border-t border-white/10 animate-pulse">
-                    {Array.from({ length: 9 }).map((__, j) => (
-                      <td key={j} className="px-4 py-3">
-                        <div className="h-3 rounded bg-white/10" />
-                      </td>
+          <div className="overflow-auto flex-1 min-h-0 pb-3 table-scroll vip-scroll">
+            <table className="min-w-[1200px] w-full text-sm">
+              <thead className="text-white/70 sticky top-0 z-20">
+                <tr className="border-b border-white/10">
+                  <th className="text-left px-4 py-3 bg-[#0b1220]">Restoran</th>
+                  <th className="text-left px-4 py-3 bg-[#0b1220]">Rez. No</th>
+                  <th className="text-left px-4 py-3 bg-[#0b1220]">Masa</th>
+                  <th className="text-left px-4 py-3 bg-[#0b1220]">Gün/Ay/Yıl</th>
+                  <th className="text-left px-4 py-3 bg-[#0b1220]">Saat</th>
+                  <th className="text-left px-4 py-3 bg-[#0b1220]">Müşteri</th>
+                  <th className="text-left px-4 py-3 bg-[#0b1220]">Telefon</th>
+                  <th className="text-left px-4 py-3 bg-[#0b1220]">Kişi</th>
+                  <th className="text-left px-4 py-3 bg-[#0b1220]">Çocuk (7-)</th>
+                  <th className="text-left px-4 py-3 bg-[#0b1220]">Yetkili</th>
+                  <th className="text-left px-4 py-3 bg-[#0b1220]">Not</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-white/10">
+                {loading ? (
+                  <>
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <SkeletonRow key={i} />
                     ))}
+                  </>
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td className="p-0" colSpan={11}>
+                      <EmptyState
+                        title={hasActiveFilters ? "Sonuç bulunamadı" : "Henüz kayıt yok"}
+                        desc={
+                          hasActiveFilters
+                            ? "Arama veya filtre kriterlerinizi değiştirin. Gerekirse filtreyi temizleyin."
+                            : "Rezervasyon oluşturulduğunda burada listelenecektir."
+                        }
+                      />
+                    </td>
                   </tr>
-                ))
-              ) : (
-                <>
-                  {filtered.map((r, idx) => {
-                    const id = rowId(r) || `${idx}`;
-
-                    const rest = rowRestaurant(r) || "-";
-                    const d = rowDateYMD(r);
-                    const t = rowTimeHHmm(r);
-
-                    const cust = rowCustomer(r) || "-";
-                    const phone = rowPhone(r) || "-";
-                    const officer = rowOfficer(r) || "-";
-                    const note = rowNote(r) || "-";
-                    const risk = rowRisk(r) || "-";
+                ) : (
+                  filtered.map((r, idx) => {
+                    const officer = s(r.officer_name) || s(r.officer_email) || "-";
+                    const kids = s(r.kids_u7) || "-";
+                    const ppl = s(r.people_count) || "-";
+                    const key = String(r.reservation_id || r.id || idx);
+                    const isSelected = key === selectedKey;
 
                     return (
                       <tr
-                        key={id}
-                        className={cx("border-t border-white/10", "hover:bg-white/[0.04] transition")}
+                        key={key}
+                        onClick={() => setSelectedKey((prev) => (prev === key ? "" : key))}
+                        className={cx("hover:bg-white/5 transition cursor-pointer", isSelected ? "bg-white/[0.06]" : "")}
                       >
-                        <td className="px-4 py-3 text-white/90 font-medium whitespace-nowrap">{rest}</td>
-                        <td className="px-4 py-3 text-white/80 whitespace-nowrap">
-                          {d ? formatTRDateFromYMD(d) : "-"}
-                        </td>
-                        <td className="px-4 py-3 text-white/80 whitespace-nowrap">{t || "-"}</td>
-                        <td className="px-4 py-3 text-white/90">{cust}</td>
-                        <td className="px-4 py-3 text-white/80 whitespace-nowrap">{phone}</td>
-                        <td className="px-4 py-3 text-white/80 whitespace-nowrap">{risk}</td>
-                        <td className="px-4 py-3 text-white/80">{officer}</td>
-                        <td className="px-4 py-3 text-white/80 min-w-[320px]">{note}</td>
-
-                        <td className="px-4 py-3">
-                          <span className="inline-flex items-center rounded-full border border-white/10 bg-black/30 px-3 py-1 text-xs text-white/80">
-                            uyarı
-                          </span>
-                        </td>
+                        <td className="px-4 py-3">{s(r.restaurant) || "-"}</td>
+                        <td className="px-4 py-3">{s(r.reservation_no) || "-"}</td>
+                        <td className="px-4 py-3">{s(r.table_no) || "-"}</td>
+                        <td className="px-4 py-3">{normalizeDate(r.date) || "-"}</td>
+                        <td className="px-4 py-3">{normalizeTime(r.time) || "-"}</td>
+                        <td className="px-4 py-3">{s(r.customer_full_name) || "-"}</td>
+                        <td className="px-4 py-3">{s(r.customer_phone) || "-"}</td>
+                        <td className="px-4 py-3">{ppl}</td>
+                        <td className="px-4 py-3">{kids}</td>
+                        <td className="px-4 py-3">{officer}</td>
+                        <td className="px-4 py-3">{s(r.note) || "-"}</td>
                       </tr>
                     );
-                  })}
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-                  {filtered.length === 0 ? (
-                    <tr className="border-t border-white/10">
-                      <td colSpan={9} className="px-4 py-10 text-center text-white/50">
-                        Kayıt bulunamadı.
-                      </td>
-                    </tr>
-                  ) : null}
-                </>
-              )}
-            </tbody>
-          </table>
+        <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/10">
+            <div className="text-sm font-semibold text-white">Detay</div>
+            <div className="text-xs text-white/50 mt-1">Bir satıra tıklayarak detayları görüntüleyin.</div>
+          </div>
+
+          <div className="p-4">
+            {!selectedRow ? (
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                <div className="text-sm text-white/70 font-semibold">Seçim yok</div>
+                <div className="mt-1 text-sm text-white/60">Listeden bir rezervasyon seçin. Seçili satır vurgulanacaktır.</div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="text-white font-semibold">{s(selectedRow.customer_full_name) || "-"}</div>
+                  <div className="text-white/55 text-sm mt-1">{s(selectedRow.customer_phone) || "-"}</div>
+                  <div className="text-white/35 text-xs mt-3">
+                    {s(selectedRow.restaurant) || "-"} • {s(selectedRow.reservation_no) || "-"}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <div className="text-xs text-white/60">Tarih</div>
+                    <div className="text-white/80 mt-1">{normalizeDate(selectedRow.date) || "-"}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-white/60">Saat</div>
+                    <div className="text-white/80 mt-1">{normalizeTime(selectedRow.time) || "-"}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-white/60">Masa</div>
+                    <div className="text-white/80 mt-1">{s(selectedRow.table_no) || "-"}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-white/60">Çocuk (7-)</div>
+                    <div className="text-white/80 mt-1">{s(selectedRow.kids_u7) || "-"}</div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs text-white/60">Kişi</div>
+                    <div className="text-white/80 mt-1">{s(selectedRow.people_count) || "-"}</div>
+                  </div>
+                  <div />
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="text-xs text-white/60">Yetkili</div>
+                  <div className="text-white/80 mt-1">{s(selectedRow.officer_name) || s(selectedRow.officer_email) || "-"}</div>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="text-xs text-white/60">Not</div>
+                  <div className="text-white/80 mt-2 whitespace-pre-wrap">{s(selectedRow.note) || "-"}</div>
+                </div>
+
+                <button
+                  onClick={() => setSelectedKey("")}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
+                >
+                  Seçimi kaldır
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      <style jsx global>{`
+        /* Bu sayfada dış scroll'u kapatıp, scroll'u tablo alanına taşıyoruz */
+        .page-no-scroll {
+          height: calc(100dvh - 24px);
+        }
+        .viewport-grid {
+          height: calc(100dvh - 260px);
+        }
+
+        /* VIP scroll görünümü (WebKit + Firefox) */
+        .vip-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(255, 255, 255, 0.22) rgba(255, 255, 255, 0.06);
+        }
+        .vip-scroll::-webkit-scrollbar {
+          width: 10px;
+          height: 10px;
+        }
+        .vip-scroll::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.06);
+          border-radius: 999px;
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+        }
+        .vip-scroll::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.16));
+          border-radius: 999px;
+          border: 2px solid rgba(0, 0, 0, 0.35);
+          box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+        }
+        .vip-scroll::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.44), rgba(255, 255, 255, 0.22));
+        }
+        .vip-scroll::-webkit-scrollbar-corner {
+          background: transparent;
+        }
+
+        @media (max-width: 1024px) {
+          .viewport-grid {
+            height: auto;
+          }
+          .page-no-scroll {
+            height: auto;
+          }
+          .table-scroll {
+            max-height: 520px;
+          }
+        }
+      `}</style>
     </div>
   );
 }

@@ -147,6 +147,9 @@ function SkeletonRow() {
       <td className="px-4 py-3">
         <SkeletonCell />
       </td>
+      <td className="px-4 py-3">
+        <SkeletonCell />
+      </td>
     </tr>
   );
 }
@@ -163,10 +166,59 @@ function EmptyState({ title, desc }: { title: string; desc: string }) {
   );
 }
 
+function SmsBadge({ status, mode }: { status?: string; mode?: string }) {
+  const st = s(status).toUpperCase();
+  const md = s(mode).toUpperCase();
+
+  const label = st ? (md ? `${st} (${md})` : st) : "YOK";
+
+  const cls =
+    st === "SENT"
+      ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-200"
+      : st === "FAILED"
+      ? "border-red-400/25 bg-red-400/10 text-red-200"
+      : st
+      ? "border-white/15 bg-white/[0.06] text-white/75"
+      : "border-white/12 bg-white/[0.04] text-white/55";
+
+  return <span className={cx("inline-flex items-center rounded-xl border px-2.5 py-1 text-xs", cls)}>{label}</span>;
+}
+
+type SmsIndexResponse = {
+  by_reservation_no?: Record<
+    string,
+    {
+      created_at?: string;
+      status?: string;
+      mode?: string;
+      sender_id?: string;
+      customer_phone?: string;
+    }
+  >;
+};
+
+function withSms(rows: any[], smsIndex: SmsIndexResponse | null) {
+  const map = smsIndex?.by_reservation_no || {};
+  return (rows || []).map((r) => {
+    const rn = s(r?.reservation_no);
+    const sms = rn ? map[rn] : null;
+    return {
+      ...r,
+      sms_status: sms ? s(sms.status) : "",
+      sms_mode: sms ? s(sms.mode) : "",
+      sms_created_at: sms ? s(sms.created_at) : "",
+      sms_sender_id: sms ? s(sms.sender_id) : "",
+    };
+  });
+}
+
 export default function Page() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string>("");
+
+  const [smsIndex, setSmsIndex] = useState<SmsIndexResponse | null>(null);
+  const [loadingSms, setLoadingSms] = useState(false);
 
   // filtreler
   const [q, setQ] = useState("");
@@ -183,24 +235,40 @@ export default function Page() {
     async function load() {
       setLoading(true);
       setErr("");
+      setLoadingSms(true);
 
       try {
-        const r1 = await fetch("/api/reservations", { cache: "no-store" });
+        const [r1, r2] = await Promise.all([
+          fetch("/api/reservations", { cache: "no-store" }),
+          fetch("/api/sms/index", { cache: "no-store" }),
+        ]);
+
         const j1 = await r1.json();
+        const j2 = await r2.json();
 
         if (!r1.ok) throw new Error(j1?.error || "Rezervasyonlar alınamadı");
+        if (r2.ok) {
+          if (!alive) return;
+          setSmsIndex(j2 as SmsIndexResponse);
+        } else {
+          // SMS index bozulsa bile sayfa çalışsın
+          if (!alive) return;
+          setSmsIndex(null);
+        }
 
         const rr = Array.isArray(j1?.rows) ? j1.rows : [];
         const normalized = rr.map(normReservationRow);
+        const merged = withSms(normalized, r2.ok ? (j2 as SmsIndexResponse) : null);
 
         if (!alive) return;
-        setRows(normalized);
+        setRows(merged);
       } catch (e: any) {
         if (!alive) return;
         setErr(e?.message || "Yükleme hatası");
       } finally {
         if (!alive) return;
         setLoading(false);
+        setLoadingSms(false);
       }
     }
 
@@ -213,19 +281,33 @@ export default function Page() {
   async function reload() {
     setRefreshing(true);
     setErr("");
+    setLoadingSms(true);
+
     try {
-      const r1 = await fetch("/api/reservations", { cache: "no-store" });
+      const [r1, r2] = await Promise.all([
+        fetch("/api/reservations", { cache: "no-store" }),
+        fetch("/api/sms/index", { cache: "no-store" }),
+      ]);
+
       const j1 = await r1.json();
+      const j2 = await r2.json();
+
       if (!r1.ok) throw new Error(j1?.error || "Rezervasyonlar alınamadı");
 
       const rr = Array.isArray(j1?.rows) ? j1.rows : [];
       const normalized = rr.map(normReservationRow);
 
-      setRows(normalized);
+      const smsOk = r2.ok;
+      setSmsIndex(smsOk ? (j2 as SmsIndexResponse) : null);
+
+      const merged = withSms(normalized, smsOk ? (j2 as SmsIndexResponse) : null);
+
+      setRows(merged);
     } catch (e: any) {
       setErr(e?.message || "Yükleme hatası");
     } finally {
       setRefreshing(false);
+      setLoadingSms(false);
     }
   }
 
@@ -261,6 +343,10 @@ export default function Page() {
         r.officer_name,
         r.officer_email,
         r.note,
+        r.sms_status,
+        r.sms_mode,
+        r.sms_sender_id,
+        r.sms_created_at,
       ]
         .map((x) => s(x).toLowerCase())
         .join(" | ");
@@ -287,12 +373,18 @@ export default function Page() {
     return `Toplam: ${filtered.length}`;
   }, [loading, filtered.length, hasActiveFilters]);
 
+  const smsStatusText = useMemo(() => {
+    if (loadingSms) return "SMS yükleniyor...";
+    return smsIndex ? "SMS index hazır" : "SMS index yok";
+  }, [loadingSms, smsIndex]);
+
   return (
     <div className="space-y-4 page-no-scroll">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Rezervasyon Kayıtları</h1>
           <p className="text-white/60 text-sm">Filtrele, ara ve gerekirse kara liste ile çapraz kontrol et.</p>
+          <p className="text-white/35 text-xs mt-1">{smsStatusText}</p>
         </div>
 
         <div className="flex gap-2">
@@ -369,12 +461,13 @@ export default function Page() {
           {/* ✅ Scroll alanı flex-1 + min-h-0: en alttaki müşteri görünür
               ✅ pb ekledik: horizontal scrollbar/alt boşluk çakışmasın */}
           <div className="overflow-auto flex-1 min-h-0 pb-3 table-scroll vip-scroll">
-            <table className="min-w-[1200px] w-full text-sm">
+            <table className="min-w-[1320px] w-full text-sm">
               {/* ✅ Şeffaf header yerine solid arka plan + z-index */}
               <thead className="text-white/70 sticky top-0 z-20">
                 <tr className="border-b border-white/10">
                   <th className="text-left px-4 py-3 bg-[#0b1220]">Restoran</th>
                   <th className="text-left px-4 py-3 bg-[#0b1220]">Rez. No</th>
+                  <th className="text-left px-4 py-3 bg-[#0b1220]">SMS</th>
                   <th className="text-left px-4 py-3 bg-[#0b1220]">Masa</th>
                   <th className="text-left px-4 py-3 bg-[#0b1220]">Gün/Ay/Yıl</th>
                   <th className="text-left px-4 py-3 bg-[#0b1220]">Saat</th>
@@ -396,7 +489,7 @@ export default function Page() {
                   </>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td className="p-0" colSpan={11}>
+                    <td className="p-0" colSpan={12}>
                       <EmptyState
                         title={hasActiveFilters ? "Sonuç bulunamadı" : "Henüz kayıt yok"}
                         desc={
@@ -426,6 +519,9 @@ export default function Page() {
                       >
                         <td className="px-4 py-3">{s(r.restaurant) || "-"}</td>
                         <td className="px-4 py-3">{s(r.reservation_no) || "-"}</td>
+                        <td className="px-4 py-3">
+                          <SmsBadge status={r.sms_status} mode={r.sms_mode} />
+                        </td>
                         <td className="px-4 py-3">{s(r.table_no) || "-"}</td>
                         <td className="px-4 py-3">{normalizeDate(r.date) || "-"}</td>
                         <td className="px-4 py-3">{normalizeTime(r.time) || "-"}</td>
@@ -466,6 +562,22 @@ export default function Page() {
                   <div className="text-white/35 text-xs mt-3">
                     {s(selectedRow.restaurant) || "-"} • {s(selectedRow.reservation_no) || "-"}
                   </div>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="text-xs text-white/60">SMS Durumu</div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <SmsBadge status={selectedRow.sms_status} mode={selectedRow.sms_mode} />
+                    <div className="text-xs text-white/40">
+                      {s(selectedRow.sms_created_at) ? `• ${s(selectedRow.sms_created_at)}` : ""}
+                      {s(selectedRow.sms_sender_id) ? ` • ${s(selectedRow.sms_sender_id)}` : ""}
+                    </div>
+                  </div>
+                  {!s(selectedRow.sms_status) ? (
+                    <div className="text-xs text-white/45 mt-2">
+                      Bu rezervasyon için SMS log kaydı bulunamadı. (Rez. No eşleşmesi gerekir.)
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4 grid grid-cols-2 gap-3 text-sm">
