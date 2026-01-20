@@ -35,7 +35,7 @@ export async function GET(
 
         return NextResponse.json({
             ok: true,
-            rating: result.rating,
+            rating: (result as any).rating,
         });
 
     } catch (e: any) {
@@ -93,9 +93,9 @@ export async function POST(
 
         return NextResponse.json({
             ok: true,
-            rating_id: result.rating_id,
+            rating_id: (result as any).rating_id,
             is_positive: isPositive,
-            callback_id: result.callback_id || null,
+            callback_id: (result as any).callback_id || null,
         });
 
     } catch (e: any) {

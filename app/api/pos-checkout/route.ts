@@ -116,7 +116,7 @@ export async function POST(req: Request) {
 
         return NextResponse.json({
             ok: true,
-            rating_id: ratingResult.rating_id,
+            rating_id: (ratingResult as any).rating_id,
             token,
             rating_link: ratingLink,
         });
