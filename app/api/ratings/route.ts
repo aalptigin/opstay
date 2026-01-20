@@ -17,7 +17,7 @@ export async function GET() {
             );
         }
 
-        const rows = Array.isArray(result.rows) ? result.rows : [];
+        const rows = Array.isArray((result as any).rows) ? (result as any).rows : [];
 
         return NextResponse.json(
             { ok: true, rows },
