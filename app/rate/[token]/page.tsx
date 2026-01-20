@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 
+export const runtime = 'edge';
+
 type RatingData = {
     rating_id: string;
     restaurant: string;
@@ -289,8 +291,8 @@ export default function RatePage() {
                             onClick={() => setCurrentStep(2)}
                             disabled={overallRating === 0}
                             className={`w-full py-4 rounded-2xl text-white font-semibold transition-all ${overallRating === 0
-                                    ? "bg-neutral-300 cursor-not-allowed"
-                                    : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg hover:shadow-xl active:scale-[0.98]"
+                                ? "bg-neutral-300 cursor-not-allowed"
+                                : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg hover:shadow-xl active:scale-[0.98]"
                                 }`}
                         >
                             Devam Et →
@@ -373,8 +375,8 @@ export default function RatePage() {
                                 onClick={handleSubmit}
                                 disabled={submitting || submitted}
                                 className={`flex-[2] py-4 rounded-2xl text-white font-semibold transition-all ${submitting || submitted
-                                        ? "bg-neutral-400 cursor-not-allowed"
-                                        : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg hover:shadow-xl active:scale-[0.98]"
+                                    ? "bg-neutral-400 cursor-not-allowed"
+                                    : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg hover:shadow-xl active:scale-[0.98]"
                                     }`}
                             >
                                 {submitting ? "Gönderiliyor..." : submitted ? "Gönderildi ✓" : "Gönder"}
