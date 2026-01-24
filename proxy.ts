@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { COOKIE_NAME } from "./lib/auth.cookie";
 
+export const runtime = 'edge';
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
