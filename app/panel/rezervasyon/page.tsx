@@ -499,13 +499,12 @@ export default function ReservationsPage() {
     if (!n || !p) {
       const missing = !n && !p ? "ad soyad ve telefon" : !n ? "ad soyad" : "telefon";
       setLookupErr(
-        `Sorgu için ${missing} gerekli. ${
-          missing === "telefon"
+        `Sorgu için ${missing} gerekli. ${missing === "telefon"
             ? "Geçmiş kayıtlardan telefon bulunamadı."
             : missing === "ad soyad"
               ? "Geçmiş kayıtlardan isim bulunamadı."
               : ""
-        }`.trim()
+          }`.trim()
       );
       return;
     }
@@ -1220,15 +1219,13 @@ export default function ReservationsPage() {
       {showFloorPlan && (
         <RoofFloorPlan
           selectedTable={tableNo}
-          tableStatuses={roofTables}
-          loading={roofTablesLoading}
-          error={roofTablesErr}
-          onRefresh={() => loadRoofTableStatuses()}
           onSelect={(t) => {
             setTableNo(t);
             setShowFloorPlan(false);
           }}
           onClose={() => setShowFloorPlan(false)}
+          date={date}
+          time={time}
         />
       )}
     </div>
