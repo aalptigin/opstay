@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { COOKIE_NAME } from "./lib/auth.cookie";
 
-export function proxy(req: NextRequest) {
+export const runtime = 'edge';
+
+export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Herkese açık olanlar
