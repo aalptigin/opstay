@@ -53,6 +53,9 @@ type BlacklistCheckResponse = {
   message?: string;
 };
 
+type TableStatus = "free" | "reserved" | "occupied";
+type TableStatusMap = Record<string, TableStatus>;
+
 function cx(...a: Array<string | false | undefined | null>) {
   return a.filter(Boolean).join(" ");
 }
@@ -60,6 +63,8 @@ function cx(...a: Array<string | false | undefined | null>) {
 function s(v: any) {
   return String(v ?? "").trim();
 }
+
+import RoofFloorPlan from "./_components/RoofFloorPlan";
 
 export default function ReservationsPage() {
   const [rows, setRows] = useState<ReservationRow[]>([]);
@@ -186,6 +191,14 @@ export default function ReservationsPage() {
   const [restaurantOpen, setRestaurantOpen] = useState(false);
   const restaurantWrapRef = useRef<HTMLDivElement | null>(null);
 
+  // Zemin Planı Modalı
+  const [showFloorPlan, setShowFloorPlan] = useState(false);
+
+  // ✅ Roof masa durumları (POS)
+  const [roofTables, setRoofTables] = useState<TableStatusMap>({});
+  const [roofTablesLoading, setRoofTablesLoading] = useState(false);
+  const [roofTablesErr, setRoofTablesErr] = useState<string | null>(null);
+
   // Form state
   const now = new Date();
   const yyyy = String(now.getFullYear());
@@ -304,6 +317,48 @@ export default function ReservationsPage() {
     if (!d || !t) return "";
     return `${d}T${t}:00`;
   }, [date, time]);
+
+  // ✅ POS masa durumlarını çek (Roof + modal açıkken)
+  async function loadRoofTableStatuses() {
+    if (restaurant !== "Roof") return;
+    if (!showFloorPlan) return;
+
+    setRoofTablesErr(null);
+    setRoofTablesLoading(true);
+    try {
+      const qs = new URLSearchParams({
+        restaurant: "Roof",
+        date: s(date),
+        time: s(time),
+      });
+
+      const res = await fetch(`/api/pos/tables?${qs.toString()}`, { cache: "no-store" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Masa durumları alınamadı.");
+
+      const tables = data?.tables && typeof data.tables === "object" ? (data.tables as TableStatusMap) : {};
+      setRoofTables(tables);
+    } catch (e: any) {
+      setRoofTablesErr(e?.message || "Masa durumları alınamadı.");
+      setRoofTables({});
+    } finally {
+      setRoofTablesLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!showFloorPlan || restaurant !== "Roof") return;
+
+    loadRoofTableStatuses();
+
+    // modal açıkken periyodik yenileme (POS için ideal)
+    const id = window.setInterval(() => {
+      loadRoofTableStatuses();
+    }, 20000);
+
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showFloorPlan, restaurant, date, time]);
 
   function onLookupName(v: string) {
     setLookupName(v);
@@ -444,7 +499,13 @@ export default function ReservationsPage() {
     if (!n || !p) {
       const missing = !n && !p ? "ad soyad ve telefon" : !n ? "ad soyad" : "telefon";
       setLookupErr(
-        `Sorgu için ${missing} gerekli. ${missing === "telefon" ? "Geçmiş kayıtlardan telefon bulunamadı." : missing === "ad soyad" ? "Geçmiş kayıtlardan isim bulunamadı." : ""}`.trim()
+        `Sorgu için ${missing} gerekli. ${
+          missing === "telefon"
+            ? "Geçmiş kayıtlardan telefon bulunamadı."
+            : missing === "ad soyad"
+              ? "Geçmiş kayıtlardan isim bulunamadı."
+              : ""
+        }`.trim()
       );
       return;
     }
@@ -642,12 +703,9 @@ export default function ReservationsPage() {
     const isMid = /orta|medium/.test(risk);
     const isLow = /düşük|low/.test(risk);
 
-    if (isHigh)
-      return { border: "border-red-500/30", bg: "bg-red-500/10", text: "text-red-100", sub: "text-red-100/80" };
-    if (isMid)
-      return { border: "border-amber-500/30", bg: "bg-amber-500/10", text: "text-amber-100", sub: "text-amber-100/80" };
-    if (isLow)
-      return { border: "border-yellow-500/30", bg: "bg-yellow-500/10", text: "text-yellow-100", sub: "text-yellow-100/80" };
+    if (isHigh) return { border: "border-red-500/30", bg: "bg-red-500/10", text: "text-red-100", sub: "text-red-100/80" };
+    if (isMid) return { border: "border-amber-500/30", bg: "bg-amber-500/10", text: "text-amber-100", sub: "text-amber-100/80" };
+    if (isLow) return { border: "border-yellow-500/30", bg: "bg-yellow-500/10", text: "text-yellow-100", sub: "text-yellow-100/80" };
     return { border: "border-amber-500/25", bg: "bg-amber-500/10", text: "text-amber-100", sub: "text-amber-100/80" };
   }, [lookupResult]);
 
@@ -775,7 +833,6 @@ export default function ReservationsPage() {
               <div className="text-xs text-white/45">Sorgulanıyor...</div>
             ) : lookupResult?.ok ? (
               lookupResult.is_blacklisted ? (
-                // ✅ 1) KUTULAR AYNI HİZADA: 4 eşit kolonlu grid
                 <div className={cx("rounded-xl border px-4 py-3", riskUI.border, riskUI.bg, riskUI.text)}>
                   <div className="font-semibold">Uyarı: Bu misafir uyarı listesinde bulunuyor.</div>
 
@@ -831,7 +888,7 @@ export default function ReservationsPage() {
             ) : (
               <div className="text-xs text-white/45">
                 {lookupName.trim() || lookupPhone.trim()
-                  ? "Sorgulamak için \"Sorgula\" butonuna basın."
+                  ? 'Sorgulamak için "Sorgula" butonuna basın.'
                   : "Sorgulamak için Ad Soyad veya Telefon girin."}
               </div>
             )}
@@ -916,6 +973,15 @@ export default function ReservationsPage() {
               placeholder="Örn: 12"
               inputMode="numeric"
             />
+            {restaurant === "Roof" && (
+              <button
+                type="button"
+                onClick={() => setShowFloorPlan(true)}
+                className="mt-2 w-full rounded-xl bg-[#0ea5ff]/10 border border-[#0ea5ff]/20 py-2.5 text-xs font-bold text-[#0ea5ff] hover:bg-[#0ea5ff]/20 transition flex items-center justify-center gap-2"
+              >
+                <span>🗺️</span> Haritadan Seç
+              </button>
+            )}
           </div>
 
           <div className="min-w-0">
@@ -1149,6 +1215,22 @@ export default function ReservationsPage() {
           </table>
         </div>
       </motion.div>
+
+      {/* Roof Floor Plan Modal */}
+      {showFloorPlan && (
+        <RoofFloorPlan
+          selectedTable={tableNo}
+          tableStatuses={roofTables}
+          loading={roofTablesLoading}
+          error={roofTablesErr}
+          onRefresh={() => loadRoofTableStatuses()}
+          onSelect={(t) => {
+            setTableNo(t);
+            setShowFloorPlan(false);
+          }}
+          onClose={() => setShowFloorPlan(false)}
+        />
+      )}
     </div>
   );
 }
