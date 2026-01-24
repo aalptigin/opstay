@@ -40,12 +40,12 @@ const TABLES: TableDef[] = [
 
   // --- İKİNCİ SIRA (Küçük Masalar) ---
   { id: "T14", x: 80, y: 220, width: 60, height: 50, zone: "teras", seats: 4 }, // Sol Dikey
-  
+
   { id: "T16", x: 200, y: 220, width: 60, height: 40, zone: "teras", seats: 2 },
   { id: "T19", x: 300, y: 220, width: 60, height: 40, zone: "teras", seats: 2 },
   { id: "T21", x: 450, y: 220, width: 60, height: 40, zone: "teras", seats: 2 },
   { id: "T23", x: 550, y: 220, width: 60, height: 40, zone: "teras", seats: 2 },
-  
+
   { id: "T25", x: 950, y: 220, width: 60, height: 40, zone: "teras", seats: 2 },
   { id: "T27", x: 1050, y: 220, width: 60, height: 40, zone: "teras", seats: 2 },
   { id: "T29", x: 1150, y: 220, width: 60, height: 40, zone: "teras", seats: 2 },
@@ -60,7 +60,7 @@ const TABLES: TableDef[] = [
   { id: "L4", x: 320, y: 380, width: 70, height: 50, zone: "loca", seats: 4 },
   { id: "L6", x: 420, y: 380, width: 70, height: 50, zone: "loca", seats: 4 },
   { id: "L8", x: 520, y: 380, width: 70, height: 50, zone: "loca", seats: 4 },
-  
+
   // Alt Loca Sırası
   { id: "L1", x: 220, y: 500, width: 70, height: 50, zone: "loca", seats: 4 },
   { id: "L3", x: 320, y: 500, width: 70, height: 50, zone: "loca", seats: 4 },
@@ -141,7 +141,7 @@ async function fetchRoofStatuses(date?: string, time?: string) {
   const url = `/api/pos/tables?${qs.toString()}`;
   const res = await fetch(url, { cache: "no-store" });
   const data = await res.json().catch(() => ({}));
-  
+
   if (!res.ok || !data?.ok) return null;
 
   const map: Record<string, TableStatus> = {};
@@ -162,19 +162,19 @@ async function fetchRoofStatuses(date?: string, time?: string) {
 // Sandalye bileşeni
 function Chair({ x, y, status, angle = 0 }: { x: number; y: number; status: TableStatus, angle?: number }) {
   const ui = statusStyles(status);
-  
+
   return (
     <g transform={`rotate(${angle}, ${x}, ${y})`}>
       <path
-        d={`M ${x-10} ${y-8} Q ${x} ${y-12} ${x+10} ${y-8} L ${x+10} ${y+8} Q ${x} ${y+12} ${x-10} ${y+8} Z`}
+        d={`M ${x - 10} ${y - 8} Q ${x} ${y - 12} ${x + 10} ${y - 8} L ${x + 10} ${y + 8} Q ${x} ${y + 12} ${x - 10} ${y + 8} Z`}
         fill={ui.fill}
         stroke={ui.stroke}
         strokeWidth="1"
         opacity="0.9"
       />
-       {/* Arkalık */}
+      {/* Arkalık */}
       <path
-        d={`M ${x-10} ${y-8} Q ${x} ${y-15} ${x+10} ${y-8}`}
+        d={`M ${x - 10} ${y - 8} Q ${x} ${y - 15} ${x + 10} ${y - 8}`}
         fill="none"
         stroke={ui.stroke}
         strokeWidth="3"
@@ -185,18 +185,18 @@ function Chair({ x, y, status, angle = 0 }: { x: number; y: number; status: Tabl
 }
 
 // Masa ve sandalye grubu
-function TableWithChairs({ table, status, isSelected, onSelect }: { 
-  table: TableDef; 
-  status: TableStatus; 
+function TableWithChairs({ table, status, isSelected, onSelect }: {
+  table: TableDef;
+  status: TableStatus;
   isSelected: boolean;
   onSelect: () => void;
 }) {
   const ui = statusStyles(status);
   const { x, y, width, height } = table;
-  
+
   // Basit sandalye yerleşimi mantığı
   const isVertical = height > width;
-  
+
   return (
     <g
       className="cursor-pointer transition-all duration-200 group"
@@ -205,8 +205,8 @@ function TableWithChairs({ table, status, isSelected, onSelect }: {
       {/* Seçim Halkası */}
       {isSelected && (
         <rect
-          x={x - width/2 - 15}
-          y={y - height/2 - 15}
+          x={x - width / 2 - 15}
+          y={y - height / 2 - 15}
           width={width + 30}
           height={height + 30}
           rx="12"
@@ -220,8 +220,8 @@ function TableWithChairs({ table, status, isSelected, onSelect }: {
 
       {/* Masa Gövdesi */}
       <rect
-        x={x - width/2}
-        y={y - height/2}
+        x={x - width / 2}
+        y={y - height / 2}
         width={width}
         height={height}
         rx="6"
@@ -235,27 +235,27 @@ function TableWithChairs({ table, status, isSelected, onSelect }: {
       {/* Sandalyeler */}
       {isVertical ? (
         <>
-           {/* Sol ve Sağ */}
-           <Chair x={x - width/2 - 5} y={y - height/4} status={status} angle={-90} />
-           <Chair x={x - width/2 - 5} y={y + height/4} status={status} angle={-90} />
-           <Chair x={x + width/2 + 5} y={y - height/4} status={status} angle={90} />
-           <Chair x={x + width/2 + 5} y={y + height/4} status={status} angle={90} />
+          {/* Sol ve Sağ */}
+          <Chair x={x - width / 2 - 5} y={y - height / 4} status={status} angle={-90} />
+          <Chair x={x - width / 2 - 5} y={y + height / 4} status={status} angle={-90} />
+          <Chair x={x + width / 2 + 5} y={y - height / 4} status={status} angle={90} />
+          <Chair x={x + width / 2 + 5} y={y + height / 4} status={status} angle={90} />
         </>
       ) : (
         <>
           {/* Üst ve Alt (veya yanlar genişse) */}
           {table.seats <= 2 ? (
-             <>
-               <Chair x={x - width/2 - 5} y={y} status={status} angle={-90} />
-               <Chair x={x + width/2 + 5} y={y} status={status} angle={90} />
-             </>
+            <>
+              <Chair x={x - width / 2 - 5} y={y} status={status} angle={-90} />
+              <Chair x={x + width / 2 + 5} y={y} status={status} angle={90} />
+            </>
           ) : (
-             <>
-               <Chair x={x - width/4} y={y - height/2 - 5} status={status} angle={0} />
-               <Chair x={x + width/4} y={y - height/2 - 5} status={status} angle={0} />
-               <Chair x={x - width/4} y={y + height/2 + 5} status={status} angle={180} />
-               <Chair x={x + width/4} y={y + height/2 + 5} status={status} angle={180} />
-             </>
+            <>
+              <Chair x={x - width / 4} y={y - height / 2 - 5} status={status} angle={0} />
+              <Chair x={x + width / 4} y={y - height / 2 - 5} status={status} angle={0} />
+              <Chair x={x - width / 4} y={y + height / 2 + 5} status={status} angle={180} />
+              <Chair x={x + width / 4} y={y + height / 2 + 5} status={status} angle={180} />
+            </>
           )}
         </>
       )}
@@ -385,62 +385,62 @@ export default function RoofFloorPlan({ selectedTable, onSelect, onClose, date, 
 
           {/* Main Content Area */}
           <div className="flex flex-1 overflow-hidden">
-             
+
             {/* Sidebar Controls */}
             <div className="w-64 flex-shrink-0 border-r border-white/10 bg-[#111623] p-5 space-y-6 overflow-y-auto">
-                <div>
-                  <label className="text-[11px] text-white/40 uppercase font-bold tracking-wider mb-2 block">Masa Ara</label>
-                  <input
-                    value={q}
-                    onChange={(e) => setQ(e.target.value)}
-                    placeholder="T15, L2..."
-                    className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none focus:border-[#0ea5ff]"
-                  />
-                </div>
+              <div>
+                <label className="text-[11px] text-white/40 uppercase font-bold tracking-wider mb-2 block">Masa Ara</label>
+                <input
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="T15, L2..."
+                  className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none focus:border-[#0ea5ff]"
+                />
+              </div>
 
-                <div>
-                   <label className="text-[11px] text-white/40 uppercase font-bold tracking-wider mb-2 block">Bölgeler</label>
-                   <div className="space-y-2">
-                      {[
-                        { id: "all", label: "Tümü", count: TABLES.length, color: "bg-gray-700" },
-                        { id: "teras", label: "Teras", count: zoneStats.teras, color: "bg-emerald-600" },
-                        { id: "loca", label: "Loca", count: zoneStats.loca, color: "bg-blue-600" },
-                        { id: "bekleme", label: "Bekleme", count: zoneStats.bekleme, color: "bg-pink-600" }
-                      ].map(z => (
-                        <button
-                          key={z.id}
-                          onClick={() => setSelectedZone(z.id as any)}
-                          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition ${selectedZone === z.id ? 'bg-white/10 text-white' : 'text-white/50 hover:bg-white/5'}`}
-                        >
-                           <div className="flex items-center gap-2">
-                              <span className={`w-2 h-2 rounded-full ${z.color}`}></span>
-                              {z.label}
-                           </div>
-                           <span className="opacity-50">{z.count}</span>
-                        </button>
-                      ))}
-                   </div>
+              <div>
+                <label className="text-[11px] text-white/40 uppercase font-bold tracking-wider mb-2 block">Bölgeler</label>
+                <div className="space-y-2">
+                  {[
+                    { id: "all", label: "Tümü", count: TABLES.length, color: "bg-gray-700" },
+                    { id: "teras", label: "Teras", count: zoneStats.teras, color: "bg-emerald-600" },
+                    { id: "loca", label: "Loca", count: zoneStats.loca, color: "bg-blue-600" },
+                    { id: "bekleme", label: "Bekleme", count: zoneStats.bekleme, color: "bg-pink-600" }
+                  ].map(z => (
+                    <button
+                      key={z.id}
+                      onClick={() => setSelectedZone(z.id as any)}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition ${selectedZone === z.id ? 'bg-white/10 text-white' : 'text-white/50 hover:bg-white/5'}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${z.color}`}></span>
+                        {z.label}
+                      </div>
+                      <span className="opacity-50">{z.count}</span>
+                    </button>
+                  ))}
                 </div>
+              </div>
 
-                <div className="pt-4 border-t border-white/10">
-                   <div className="space-y-3">
-                      <div className="flex items-center gap-3 text-xs text-white/60">
-                         <div className="w-3 h-3 rounded bg-[#10b981]"></div> Boş
-                      </div>
-                      <div className="flex items-center gap-3 text-xs text-white/60">
-                         <div className="w-3 h-3 rounded bg-[#ef4444]"></div> Dolu
-                      </div>
-                      <div className="flex items-center gap-3 text-xs text-white/60">
-                         <div className="w-3 h-3 rounded bg-[#f59e0b]"></div> Rezerve
-                      </div>
-                   </div>
+              <div className="pt-4 border-t border-white/10">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 text-xs text-white/60">
+                    <div className="w-3 h-3 rounded bg-[#10b981]"></div> Boş
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-white/60">
+                    <div className="w-3 h-3 rounded bg-[#ef4444]"></div> Dolu
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-white/60">
+                    <div className="w-3 h-3 rounded bg-[#f59e0b]"></div> Rezerve
+                  </div>
                 </div>
+              </div>
             </div>
 
             {/* SVG MAP */}
             <div className="flex-1 bg-[#070b14] relative overflow-auto flex items-center justify-center p-10">
-               {/* Harita */}
-               <svg
+              {/* Harita */}
+              <svg
                 viewBox="0 0 1300 800"
                 className="w-full max-w-[1200px] h-auto drop-shadow-2xl select-none"
               >
@@ -453,7 +453,7 @@ export default function RoofFloorPlan({ selectedTable, onSelect, onClose, date, 
                 <rect width="1300" height="800" fill="url(#floorGrid)" />
 
                 {/* --- MİMARİ ALANLAR (SABİT) --- */}
-                
+
                 {/* Sahne */}
                 <rect x="10" y="350" width="40" height="200" fill="#1e293b" rx="4" />
                 <text x="25" y="450" fill="#475569" transform="rotate(-90 25 450)" textAnchor="middle" fontSize="12" fontWeight="bold">SAHNE</text>
@@ -470,7 +470,7 @@ export default function RoofFloorPlan({ selectedTable, onSelect, onClose, date, 
                 <rect x="150" y="50" width="10" height="100" fill="#059669" rx="2" opacity="0.5" />
                 <rect x="250" y="50" width="10" height="100" fill="#059669" rx="2" opacity="0.5" />
                 <rect x="400" y="50" width="10" height="100" fill="#059669" rx="2" opacity="0.5" />
-                
+
                 {/* Loca Alanı Çizgisi */}
                 <rect x="180" y="340" width="450" height="240" fill="none" stroke="#ffffff" strokeWidth="1" strokeDasharray="5 5" opacity="0.1" rx="20" />
                 <text x="400" y="330" fill="white" textAnchor="middle" fontSize="12" opacity="0.4">LOCA ALANI</text>
@@ -481,7 +481,7 @@ export default function RoofFloorPlan({ selectedTable, onSelect, onClose, date, 
                 {/* --- MASALAR --- */}
                 {filteredTables.map((table) => {
                   const st = statuses[table.id] ?? "unknown";
-                  const isSelected = selected && table.id.toLowerCase() === selected.toLowerCase();
+                  const isSelected = Boolean(selected && table.id.toLowerCase() === selected.toLowerCase());
 
                   return (
                     <TableWithChairs
@@ -499,18 +499,18 @@ export default function RoofFloorPlan({ selectedTable, onSelect, onClose, date, 
 
           {/* Footer */}
           {selected && (
-             <div className="border-t border-white/10 bg-[#151b2b] px-6 py-4 flex justify-between items-center">
-                <div className="text-white">
-                   <span className="text-white/50 text-sm">Seçilen Masa:</span>
-                   <span className="ml-2 font-bold text-xl text-[#0ea5ff]">{selected}</span>
-                </div>
-                <button
-                  onClick={() => onSelect(selected)}
-                  className="bg-[#0ea5ff] text-white px-6 py-2 rounded-xl font-bold hover:bg-blue-500 transition shadow-lg shadow-blue-500/20"
-                >
-                   Bu Masayı Onayla
-                </button>
-             </div>
+            <div className="border-t border-white/10 bg-[#151b2b] px-6 py-4 flex justify-between items-center">
+              <div className="text-white">
+                <span className="text-white/50 text-sm">Seçilen Masa:</span>
+                <span className="ml-2 font-bold text-xl text-[#0ea5ff]">{selected}</span>
+              </div>
+              <button
+                onClick={() => onSelect(selected)}
+                className="bg-[#0ea5ff] text-white px-6 py-2 rounded-xl font-bold hover:bg-blue-500 transition shadow-lg shadow-blue-500/20"
+              >
+                Bu Masayı Onayla
+              </button>
+            </div>
           )}
         </motion.div>
       </motion.div>
