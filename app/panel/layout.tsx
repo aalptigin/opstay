@@ -136,6 +136,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
   const [me, setMe] = useState<Me["user"] | null>(null);
   const [loadingMe, setLoadingMe] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Başlangıçta tüm bölümler kapalı (görseldeki gibi)
   const [openRez, setOpenRez] = useState(false);
@@ -164,6 +165,11 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
       cancelled = true;
     };
   }, []);
+
+  // Mobilde route değiştiğinde sidebar'ı kapat
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -211,12 +217,45 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
         }
       `}</style>
 
+      {/* HAMBURGER MENU BUTTON (mobilde görünür) */}
+      <button
+        type="button"
+        onClick={() => setSidebarOpen(true)}
+        className={cx(
+          "md:hidden fixed top-4 left-4 z-50 p-3 rounded-xl",
+          "bg-gradient-to-b from-white/10 to-white/5 backdrop-blur-xl",
+          "border border-white/20 shadow-lg",
+          "hover:from-white/15 hover:to-white/8 transition"
+        )}
+        style={{
+          boxShadow: "0 10px 30px rgba(0,0,0,0.3), inset 0 0 0 1px rgba(255,255,255,0.1)"
+        }}
+        aria-label="Menüyü aç"
+      >
+        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+
+      {/* BACKDROP (mobilde sidebar açıkken) */}
+      {sidebarOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* SOL MENÜ */}
       <aside
         className={cx(
-          "w-64 shrink-0 sticky top-0 h-screen border-r border-white/10 flex flex-col",
+          "w-64 shrink-0 h-screen border-r border-white/10 flex flex-col",
           "bg-gradient-to-b from-[#070b16] via-black/[0.35] to-[#020617]/70",
-          "backdrop-blur-xl"
+          "backdrop-blur-xl",
+          // Mobil: fixed + overlay, Masaüstü: sticky
+          "fixed md:sticky top-0 z-40",
+          "transition-transform duration-300 ease-out",
+          // Mobilde kapalıyken ekran dışında
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
         style={{
           boxShadow:
@@ -226,9 +265,22 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
         {/* Başlık */}
         <div className="px-4 py-4 border-b border-white/10 relative overflow-hidden">
           <div className="absolute inset-0 opacity-80 bg-[radial-gradient(80%_120%_at_25%_0%,rgba(56,189,248,0.18),transparent_55%)]" />
-          <div className="relative">
-            <div className="text-sm font-semibold tracking-wide">OPSSTAY PANEL</div>
-            <div className="mt-1 text-[11px] text-white/60">Misafir ön kontrol alanı</div>
+          <div className="relative flex items-center justify-between">
+            <div>
+              <div className="text-sm font-semibold tracking-wide">OPSSTAY PANEL</div>
+              <div className="mt-1 text-[11px] text-white/60">Misafir ön kontrol alanı</div>
+            </div>
+            {/* Close button (mobilde görünür) */}
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(false)}
+              className="md:hidden p-2 rounded-lg hover:bg-white/10 transition"
+              aria-label="Menüyü kapat"
+            >
+              <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -360,7 +412,9 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {/* SAĞ İÇERİK */}
-      <main className="flex-1 min-h-screen bg-[#020617]">{children}</main>
+      <main className="flex-1 min-h-screen bg-[#020617] md:ml-0">
+        <div className="p-4 md:p-6 lg:p-8">{children}</div>
+      </main>
     </div>
   );
 }
