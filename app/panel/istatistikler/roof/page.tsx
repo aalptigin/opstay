@@ -258,7 +258,7 @@ function escapeHtml(x: any) {
  */
 async function downloadPdfDirect(args: {
   restaurant: string;
-  daysCount: 7 | 14;
+  daysCount: 7 | 14 | 30;
   totals: { totalRes: number; totalBl: number; high: number; medium: number; low: number };
   daily: Array<{
     date: string;
@@ -283,7 +283,7 @@ async function downloadPdfDirect(args: {
       { text: "Tarih (YMD)", style: "th" },
       { text: "Gün/Ay", style: "th" },
       { text: "Rez", style: "th", alignment: "right" },
-      { text: "Kara Liste", style: "th", alignment: "right" },
+      { text: "Uyarı Listesi", style: "th", alignment: "right" },
       { text: "Risk Y", style: "th", alignment: "right" },
       { text: "Risk O", style: "th", alignment: "right" },
       { text: "Risk D", style: "th", alignment: "right" },
@@ -306,7 +306,7 @@ async function downloadPdfDirect(args: {
 
     content: [
       { text: `İstatistikler • ${restaurant}`, style: "h1" },
-      { text: `${daysCount} günlük özet (rezervasyon ve kara liste) • Oluşturulma: ${ts}`, style: "sub" },
+      { text: `${daysCount} günlük özet (rezervasyon ve uyarı listesi) • Oluşturulma: ${ts}`, style: "sub" },
 
       { text: " ", margin: [0, 8, 0, 0] },
 
@@ -324,7 +324,7 @@ async function downloadPdfDirect(args: {
           {
             width: "*",
             stack: [
-              { text: `TOPLAM KARA LİSTE (${daysCount}G)`, style: "kpiLabel" },
+              { text: `TOPLAM UYARI LİSTESİ (${daysCount}G)`, style: "kpiLabel" },
               { text: String(totals.totalBl), style: "kpiValue" },
               { text: "Seçili restoran", style: "kpiSub" },
             ],
@@ -411,10 +411,11 @@ async function downloadPdfDirect(args: {
 export default function IstatistiklerRoofPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [daysCount, setDaysCount] = useState<7 | 14>(7);
+  const [daysCount, setDaysCount] = useState<7 | 14 | 30>(7);
 
   const [reservations, setReservations] = useState<RowAny[]>([]);
   const [records, setRecords] = useState<RowAny[]>([]);
+  const [posOrders, setPosOrders] = useState<any>(null);
 
   const restaurant = DEFAULT_RESTAURANT;
 
@@ -425,14 +426,29 @@ export default function IstatistiklerRoofPage() {
       const [resRows, recRows] = await Promise.all([fetchRows("/api/reservations"), fetchRows("/api/records")]);
       setReservations(resRows);
       setRecords(recRows);
+
+      // POS adisyon verilerini çek
+      const today = new Date();
+      const endDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+      const startDateObj = new Date(today);
+      startDateObj.setDate(startDateObj.getDate() - (daysCount - 1));
+      const startDate = `${startDateObj.getFullYear()}-${String(startDateObj.getMonth() + 1).padStart(2, "0")}-${String(startDateObj.getDate()).padStart(2, "0")}`;
+
+      const posRes = await fetch(`/api/pos/orders?restaurant=${encodeURIComponent(restaurant)}&start_date=${startDate}&end_date=${endDate}`, { cache: "no-store" });
+      const posData = await posRes.json();
+      if (posRes.ok) {
+        setPosOrders(posData);
+      }
     } catch (e: any) {
       setErr(e?.message || "Yükleme hatası");
       setReservations([]);
       setRecords([]);
+      setPosOrders(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [daysCount, restaurant]);
 
   useEffect(() => {
     load();
@@ -515,7 +531,7 @@ export default function IstatistiklerRoofPage() {
             >
               İstatistikler · {restaurant}
             </motion.h1>
-            <p className="mt-2 text-sm text-white/60">{daysCount} günlük özet (rezervasyon ve kara liste).</p>
+            <p className="mt-2 text-sm text-white/60">{daysCount} günlük özet (rezervasyon ve uyarı listesi).</p>
             {err ? <div className="mt-2 text-xs text-red-300/90">{err}</div> : null}
           </div>
 
@@ -538,6 +554,15 @@ export default function IstatistiklerRoofPage() {
                 )}
               >
                 Son 14 Gün
+              </button>
+              <button
+                onClick={() => setDaysCount(30)}
+                className={cx(
+                  "px-3 py-2 text-xs rounded-lg transition",
+                  daysCount === 30 ? "bg-white/10 text-white" : "text-white/70 hover:bg-white/10"
+                )}
+              >
+                Son 30 Gün
               </button>
             </div>
 
@@ -570,14 +595,22 @@ export default function IstatistiklerRoofPage() {
           className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4"
         >
           <KPI label={`TOPLAM REZERVASYON (${daysCount}G)`} value={totals.totalRes} sub="Seçili restoran" />
-          <KPI label={`TOPLAM KARA LİSTE (${daysCount}G)`} value={totals.totalBl} sub="Seçili restoran" />
-          <KPI label="RİSK (DAĞILIM)" value={`${totals.high}/${totals.medium}/${totals.low}`} sub="Yüksek / Orta / Düşük" />
-          <KPI label="KAPSAM" value={daysCount} sub="Günlük trend" />
+          <KPI label={`TOPLAM UYARI LİSTESİ (${daysCount}G)`} value={totals.totalBl} sub="Seçili restoran" />
+          <KPI
+            label={`TOPLAM GELİR (${daysCount}G)`}
+            value={posOrders?.summary?.total_revenue ? `${posOrders.summary.total_revenue}₺` : "-"}
+            sub={posOrders?.mode === "stub" ? "Mock veri" : "POS verisi"}
+          />
+          <KPI
+            label={`ORT. ADİSYON (${daysCount}G)`}
+            value={posOrders?.summary?.average_order ? `${posOrders.summary.average_order}₺` : "-"}
+            sub={`${posOrders?.summary?.total_orders || 0} adisyon`}
+          />
         </motion.div>
 
         <div className="mt-6 grid gap-4">
           <MiniAreaChart title="Günlük Rezervasyon Sayısı" labels={dayLabels} values={seriesReservations} />
-          <MiniAreaChart title="Günlük Kara Liste" labels={dayLabels} values={seriesBlacklist} />
+          <MiniAreaChart title="Günlük Uyarı Listesi" labels={dayLabels} values={seriesBlacklist} />
         </div>
       </div>
     </div>

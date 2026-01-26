@@ -64,7 +64,7 @@ function s(v: any) {
   return String(v ?? "").trim();
 }
 
-import RoofFloorPlan from "./_components/RoofFloorPlan";
+import RoofFloorPlanInline from "./_components/RoofFloorPlanInline";
 
 export default function ReservationsPage() {
   const [rows, setRows] = useState<ReservationRow[]>([]);
@@ -500,10 +500,10 @@ export default function ReservationsPage() {
       const missing = !n && !p ? "ad soyad ve telefon" : !n ? "ad soyad" : "telefon";
       setLookupErr(
         `Sorgu için ${missing} gerekli. ${missing === "telefon"
-            ? "Geçmiş kayıtlardan telefon bulunamadı."
-            : missing === "ad soyad"
-              ? "Geçmiş kayıtlardan isim bulunamadı."
-              : ""
+          ? "Geçmiş kayıtlardan telefon bulunamadı."
+          : missing === "ad soyad"
+            ? "Geçmiş kayıtlardan isim bulunamadı."
+            : ""
           }`.trim()
       );
       return;
@@ -755,6 +755,16 @@ export default function ReservationsPage() {
           </div>
         </div>
 
+        {/* Roof Kat Planı - Inline */}
+        {restaurant === "Roof" && (
+          <RoofFloorPlanInline
+            selectedTable={tableNo}
+            onSelect={setTableNo}
+            date={date}
+            time={time}
+          />
+        )}
+
         {/* Misafir Sorgulama */}
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
           <div className="flex items-start justify-between gap-3">
@@ -972,15 +982,7 @@ export default function ReservationsPage() {
               placeholder="Örn: 12"
               inputMode="numeric"
             />
-            {restaurant === "Roof" && (
-              <button
-                type="button"
-                onClick={() => setShowFloorPlan(true)}
-                className="mt-2 w-full rounded-xl bg-[#0ea5ff]/10 border border-[#0ea5ff]/20 py-2.5 text-xs font-bold text-[#0ea5ff] hover:bg-[#0ea5ff]/20 transition flex items-center justify-center gap-2"
-              >
-                <span>🗺️</span> Haritadan Seç
-              </button>
-            )}
+
           </div>
 
           <div className="min-w-0">
@@ -1215,19 +1217,7 @@ export default function ReservationsPage() {
         </div>
       </motion.div>
 
-      {/* Roof Floor Plan Modal */}
-      {showFloorPlan && (
-        <RoofFloorPlan
-          selectedTable={tableNo}
-          onSelect={(t) => {
-            setTableNo(t);
-            setShowFloorPlan(false);
-          }}
-          onClose={() => setShowFloorPlan(false)}
-          date={date}
-          time={time}
-        />
-      )}
+
     </div>
   );
 }

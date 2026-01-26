@@ -63,38 +63,38 @@ function normalizeMatch(row: any) {
   const risk_level = s(pick(row, ["risk_level", "risk", "level"]));
   const restaurant = s(pick(row, ["restaurant", "venue", "otel", "hotel"]));
   const restaurant_name = s(pick(row, ["restaurant_name", "venue_name", "otel_adi", "hotel_name"]));
-  
+
   // ✅ GOOGLE SHEETS'TEKİ GERÇEK ALAN ADLARINI KULLAN
   // Google Sheets'inizdeki Blacklist sheet'inde "authorized_name" alanı ekleyen kişiyi içeriyor
   const added_by_name = s(pick(row, [
     "authorized_name",    // ✅ Google Sheets'teki ana alan
     "officer_name",       // ✅ Alternatif alan
-    "added_by_name", 
-    "added_by", 
-    "created_by", 
-    "author", 
-    "user", 
+    "added_by_name",
+    "added_by",
+    "created_by",
+    "author",
+    "user",
     "operator"
   ]));
-  
+
   // ✅ Google Sheets'te "created_at" alanı tarihi içeriyor
   const added_at = s(pick(row, [
     "created_at",         // ✅ Google Sheets'teki ana alan
-    "added_at", 
-    "date_added", 
+    "added_at",
+    "date_added",
     "entry_date",
-    "timestamp", 
+    "timestamp",
     "record_date"
   ]));
 
   // ✅ added_by alanını added_by_name ile aynı yap
   const added_by = added_by_name;
 
-  return { 
-    full_name, 
-    phone, 
-    note, 
-    risk_level, 
+  return {
+    full_name,
+    phone,
+    note,
+    risk_level,
     restaurant: restaurant || restaurant_name,
     restaurant_name: restaurant_name || restaurant,
     // ✅ GOOGLE SHEETS'TEKİ GERÇEK ALANLARI DÖNDÜR
@@ -137,7 +137,7 @@ export async function POST(req: Request) {
           ? r
           : [];
 
-    // Kara liste kararı:
+    // Uyarı listesi kararı:
     // 1) satırda status/flag/risk varsa ona göre
     // 2) hiçbir belirteç yoksa, records.check'in doğası gereği eşleşme => blacklist kabul edilir
     let is_blacklisted = false;
@@ -150,7 +150,7 @@ export async function POST(req: Request) {
       if (anyHasSignal) {
         is_blacklisted = matches.some((m: any) => isBlacklistedRow(m));
       } else {
-        // Sinyal yoksa (sheet sadece kara liste satırları döndürüyorsa) -> eşleşme blacklist sayılır
+        // Sinyal yoksa (sheet sadece uyarı listesi satırları döndürüyorsa) -> eşleşme blacklist sayılır
         is_blacklisted = true;
       }
     }

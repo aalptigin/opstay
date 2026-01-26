@@ -303,7 +303,7 @@ export default function Page() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Rezervasyon Kayıtları</h1>
-          <p className="text-white/60 text-sm">Filtrele, ara ve gerekirse kara liste ile çapraz kontrol et.</p>
+          <p className="text-white/60 text-sm">Filtrele, ara ve gerekirse uyarı listesi ile çapraz kontrol et.</p>
         </div>
 
         <div className="flex gap-2">
