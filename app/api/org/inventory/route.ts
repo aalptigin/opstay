@@ -17,8 +17,9 @@ export async function GET(request: NextRequest) {
         if (!session.valid || !session.user) {
             return NextResponse.json({ error: session.error }, { status: 401 });
         }
+        const user = session.user;
 
-        if (!hasPermission(session.user, "inventory", "read")) {
+        if (!hasPermission(user, "inventory", "read")) {
             return NextResponse.json({ error: "Yetki yok" }, { status: 403 });
         }
 
@@ -44,8 +45,9 @@ export async function POST(request: NextRequest) {
         if (!session.valid || !session.user) {
             return NextResponse.json({ error: session.error }, { status: 401 });
         }
+        const user = session.user;
 
-        if (!hasPermission(session.user, "inventory", "create")) {
+        if (!hasPermission(user, "inventory", "create")) {
             return NextResponse.json({ error: "Yetki yok" }, { status: 403 });
         }
 
@@ -60,13 +62,13 @@ export async function POST(request: NextRequest) {
                 itemId,
                 type,
                 qty,
-                requestedBy: session.user.id,
-                unitId: unitId || session.user.unitId,
+                requestedBy: user.id,
+                unitId: unitId || user.unitId,
                 notes,
             });
 
             audit({
-                actor: { id: session.user.id, unitId: session.user.unitId },
+                actor: { id: user.id, unitId: user.unitId },
                 action: "CREATE",
                 module: "inventory",
                 entityType: "transaction",
@@ -93,7 +95,7 @@ export async function POST(request: NextRequest) {
             });
 
             audit({
-                actor: { id: session.user.id, unitId: session.user.unitId },
+                actor: { id: user.id, unitId: user.unitId },
                 action: "CREATE",
                 module: "inventory",
                 entityType: "item",

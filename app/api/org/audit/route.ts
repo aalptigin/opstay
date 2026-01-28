@@ -15,9 +15,10 @@ export async function GET(request: NextRequest) {
         if (!session.valid || !session.user) {
             return NextResponse.json({ error: session.error }, { status: 401 });
         }
+        const user = session.user;
 
         // Only PRESIDENT can view audit logs
-        if (session.user.role !== "PRESIDENT") {
+        if (user.role !== "PRESIDENT") {
             return NextResponse.json({ error: "Yetki yok" }, { status: 403 });
         }
 

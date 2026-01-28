@@ -15,9 +15,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         const ip = getClientIp(request.headers);
         const session = verifySession(token, ip);
         if (!session.valid || !session.user) return NextResponse.json({ ok: false, error: session.error }, { status: 401 });
+        const user = session.user;
 
         // RBAC
-        if (!["PRESIDENT", "UNIT_MANAGER"].includes(session.user.role)) {
+        if (!["PRESIDENT", "UNIT_MANAGER"].includes(user.role)) {
             return NextResponse.json({ ok: false, error: "Yetkisiz işlem" }, { status: 403 });
         }
 
@@ -25,15 +26,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         const parsed = RejectLeaveSchema.safeParse(body);
         if (!parsed.success) return NextResponse.json({ ok: false, error: "Geçersiz veri", details: parsed.error.issues }, { status: 400 });
 
-        const req = updateLeaveStatus(id, LeaveStatus.REJECTED, { id: session.user.id, name: session.user.name }, parsed.data.reason);
+        const req = updateLeaveStatus(id, LeaveStatus.REJECTED, { id: user.id, name: user.name }, parsed.data.reason);
 
         createAuditLog({
-            actorId: session.user.id,
+            actorId: user.id,
             action: "leave.approval.reject",
             module: "leave",
             entityType: "leave_request",
             entityId: id,
-            unitId: session.user.unitId,
+            unitId: user.unitId,
             ip,
             metadata: { reason: parsed.data.reason }
         });

@@ -15,24 +15,25 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         const ip = getClientIp(request.headers);
         const session = verifySession(token, ip);
         if (!session.valid || !session.user) return NextResponse.json({ ok: false, error: session.error }, { status: 401 });
+        const user = session.user;
 
         // RBAC: Only Unit Manager or President
-        if (!["PRESIDENT", "UNIT_MANAGER"].includes(session.user.role)) {
+        if (!["PRESIDENT", "UNIT_MANAGER"].includes(user.role)) {
             return NextResponse.json({ ok: false, error: "Yetkisiz işlem" }, { status: 403 });
         }
 
         const body = await request.json();
         const parsed = ApproveLeaveSchema.safeParse(body);
 
-        const req = updateLeaveStatus(id, LeaveStatus.APPROVED, { id: session.user.id, name: session.user.name }, parsed.data?.note);
+        const req = updateLeaveStatus(id, LeaveStatus.APPROVED, { id: user.id, name: user.name }, parsed.data?.note);
 
         createAuditLog({
-            actorId: session.user.id,
+            actorId: user.id,
             action: "leave.approval.approve",
             module: "leave",
             entityType: "leave_request",
             entityId: id,
-            unitId: session.user.unitId,
+            unitId: user.unitId,
             ip,
             metadata: { note: parsed.data?.note }
         });
