@@ -54,9 +54,12 @@ export async function GET(request: NextRequest) {
             // Masking is handled in response transformation.
         }
 
-        filters.currentUserId = session.user.id;
+        const queryFilters = {
+            ...filters,
+            currentUserId: session.user.id
+        };
 
-        const result = await getAuditLogsQuery(filters);
+        const result = await getAuditLogsQuery(queryFilters);
 
         // Masking for STAFF
         if (session.user.role === "STAFF") {
