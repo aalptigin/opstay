@@ -5,6 +5,8 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { Vehicle, VehicleAssignment, MaintenanceTicket, User, VehicleStatus } from "@/lib/org/types";
 
+export const runtime = "edge";
+
 const STATUS_CONFIG: Record<VehicleStatus, { label: string; bgColor: string; textColor: string }> = {
     available: { label: "Kullanılabilir", bgColor: "bg-emerald-100", textColor: "text-emerald-700" },
     in_use: { label: "Kullanımda", bgColor: "bg-blue-100", textColor: "text-blue-700" },
@@ -140,8 +142,8 @@ export default function VehicleDetailPage() {
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id as typeof activeTab)}
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition ${activeTab === tab.id
-                                    ? "bg-white shadow text-slate-800"
-                                    : "text-slate-500 hover:text-slate-700"
+                                ? "bg-white shadow text-slate-800"
+                                : "text-slate-500 hover:text-slate-700"
                                 }`}
                         >
                             {tab.label}
@@ -263,8 +265,8 @@ export default function VehicleDetailPage() {
                                             <td className="py-3 px-4 text-slate-700">{t.type}</td>
                                             <td className="py-3 px-4">
                                                 <span className={`px-2 py-1 rounded text-xs font-medium ${t.priority === "urgent" ? "bg-red-100 text-red-700" :
-                                                        t.priority === "high" ? "bg-amber-100 text-amber-700" :
-                                                            "bg-slate-100 text-slate-700"
+                                                    t.priority === "high" ? "bg-amber-100 text-amber-700" :
+                                                        "bg-slate-100 text-slate-700"
                                                     }`}>
                                                     {t.priority}
                                                 </span>

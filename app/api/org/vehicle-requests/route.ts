@@ -9,6 +9,8 @@ import {
 import { verifySession, getClientIp } from "@/lib/org/session";
 import { canAccessUnit } from "@/lib/org/rbac";
 
+export const runtime = "edge";
+
 // GET /api/org/vehicle-requests - List vehicle requests
 export async function GET(request: NextRequest) {
     try {

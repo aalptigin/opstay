@@ -5,6 +5,8 @@ import { verifySession, getClientIp } from "@/lib/org/session";
 import { getOverview } from "@/lib/overview/getOverview";
 import { OverviewDataSchema } from "@/lib/overview/schema";
 
+export const runtime = "edge";
+
 export async function GET(request: NextRequest) {
     try {
         // Get session token from cookie

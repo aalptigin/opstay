@@ -5,6 +5,8 @@ import { CreateCommentSchema } from "@/lib/incidents/schema";
 import { getIncidentById, createComment } from "@/lib/incidents/store";
 import { createAuditLog } from "@/lib/org/db";
 
+export const runtime = "edge";
+
 // POST /api/incidents/[id]/comments - Add comment
 export async function POST(
     request: NextRequest,

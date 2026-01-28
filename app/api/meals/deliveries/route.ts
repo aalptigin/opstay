@@ -6,6 +6,8 @@ import { DeliveryActionSchema } from "@/lib/meals/schema";
 import { getDeliveriesByDate, findDelivery, updateDeliveryStatus, getTodayDate } from "@/lib/meals/store";
 import { MealType } from "@/lib/meals/types";
 
+export const runtime = "edge";
+
 // GET /api/meals/deliveries?date=YYYY-MM-DD&mealType=LUNCH
 export async function GET(request: NextRequest) {
     try {

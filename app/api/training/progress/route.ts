@@ -5,6 +5,8 @@ import { createAuditLog } from "@/lib/org/db";
 import { ProgressCheckpointSchema } from "@/lib/training/schema";
 import { startProgress, updateProgress, getProgressByPerson } from "@/lib/training/store";
 
+export const runtime = "edge";
+
 // GET /api/training/progress
 export async function GET(request: NextRequest) {
     try {

@@ -5,6 +5,8 @@ import { AuditFilterSchema } from "@/lib/audit/schema";
 import { getAuditLogsQuery } from "@/lib/audit/service";
 import { hasPermission } from "@/lib/org/rbac";
 
+export const runtime = "edge";
+
 // GET /api/audit/logs
 export async function GET(request: NextRequest) {
     try {

@@ -5,6 +5,8 @@ import { verifySession, getClientIp } from "@/lib/org/session";
 import { hasPermission } from "@/lib/org/rbac";
 import { audit } from "@/lib/org/audit";
 
+export const runtime = "edge";
+
 export async function GET(request: NextRequest) {
     try {
         const token = request.cookies.get("org_session")?.value;

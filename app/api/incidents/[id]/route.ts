@@ -13,6 +13,8 @@ import {
 } from "@/lib/incidents/store";
 import { createAuditLog } from "@/lib/org/db";
 
+export const runtime = "edge";
+
 // GET /api/incidents/[id] - Get incident detail with work orders and comments
 export async function GET(
     request: NextRequest,

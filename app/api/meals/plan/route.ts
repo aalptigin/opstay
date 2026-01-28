@@ -6,6 +6,8 @@ import { createAuditLog } from "@/lib/org/db";
 import { CreateMealPlanSchema } from "@/lib/meals/schema";
 import { createMealPlan, getMealPlanByDate } from "@/lib/meals/store";
 
+export const runtime = "edge";
+
 // GET /api/meals/plan?date=YYYY-MM-DD
 export async function GET(request: NextRequest) {
     try {

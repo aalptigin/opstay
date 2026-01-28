@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createUser, getUserByEmail } from "@/lib/org/db";
 import { login, getClientIp } from "@/lib/org/session";
 
+export const runtime = "edge";
+
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();

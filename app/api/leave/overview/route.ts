@@ -3,6 +3,8 @@ import { verifySession, getClientIp } from "@/lib/org/session";
 import { getLeaveRequests, getBalance } from "@/lib/leave/store";
 import { LeaveOverviewPayload, LeaveStatus } from "@/lib/leave/types";
 
+export const runtime = "edge";
+
 // GET /api/leave/overview
 export async function GET(request: NextRequest) {
     try {

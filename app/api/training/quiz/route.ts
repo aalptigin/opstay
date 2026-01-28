@@ -5,6 +5,8 @@ import { createAuditLog } from "@/lib/org/db";
 import { QuizSubmitSchema } from "@/lib/training/schema";
 import { submitQuiz, getCourseById, getQuizQuestionsForClient } from "@/lib/training/store";
 
+export const runtime = "edge";
+
 // GET /api/training/quiz?courseId=xxx - Get quiz questions (without answers)
 export async function GET(request: NextRequest) {
     try {

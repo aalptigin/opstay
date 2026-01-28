@@ -6,6 +6,8 @@ import { createAuditLog } from "@/lib/org/db";
 import { AssignCourseSchema } from "@/lib/training/schema";
 import { createAssignment, getCourseById } from "@/lib/training/store";
 
+export const runtime = "edge";
+
 // POST /api/training/assign
 export async function POST(request: NextRequest) {
     try {

@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifySession, getClientIp } from "@/lib/org/session";
 import { getAuditActions } from "@/lib/audit/service";
 
+export const runtime = "edge";
+
 // GET /api/audit/actions
 export async function GET(request: NextRequest) {
     try {

@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifySession, getClientIp } from "@/lib/org/session";
 import { DepotType } from "@/lib/org/types";
 
+export const runtime = "edge";
+
 // Environment variables
 const N8N_PRODUCTS_URL = process.env.N8N_PRODUCTS_URL;
 const N8N_API_KEY = process.env.N8N_API_KEY;

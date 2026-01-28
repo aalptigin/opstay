@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Course, LearnerProgress, CONTENT_TYPE_ICONS, STATUS_LABELS, STATUS_COLORS } from "@/lib/training/types";
 
+export const runtime = "edge";
+
 interface QuizQuestionClient {
     id: string;
     type: "SINGLE_CHOICE" | "MULTI_CHOICE" | "TRUE_FALSE";
@@ -358,8 +360,8 @@ export default function CourseDetailPage() {
                                                         key={opt.id}
                                                         onClick={() => toggleAnswer(q.id, opt.id, q.type)}
                                                         className={`w-full p-3 rounded-lg text-left transition ${isSelected
-                                                                ? "bg-blue-500 text-white"
-                                                                : "bg-slate-50 text-slate-700 hover:bg-slate-100"
+                                                            ? "bg-blue-500 text-white"
+                                                            : "bg-slate-50 text-slate-700 hover:bg-slate-100"
                                                             }`}
                                                     >
                                                         {q.type === "MULTI_CHOICE" && (

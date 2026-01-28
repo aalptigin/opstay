@@ -11,6 +11,8 @@ import { verifySession, getClientIp } from "@/lib/org/session";
 import { canAccessUnit } from "@/lib/org/rbac";
 import { VehicleStatus } from "@/lib/org/types";
 
+export const runtime = "edge";
+
 // GET /api/org/vehicles/[id] - Get vehicle detail
 export async function GET(
     request: NextRequest,

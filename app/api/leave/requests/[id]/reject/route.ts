@@ -5,6 +5,8 @@ import { updateLeaveStatus } from "@/lib/leave/store";
 import { LeaveStatus } from "@/lib/leave/types";
 import { RejectLeaveSchema } from "@/lib/leave/schema";
 
+export const runtime = "edge";
+
 // POST /api/leave/requests/[id]/reject
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {

@@ -4,6 +4,8 @@ import { createAuditLog } from "@/lib/org/db";
 import { CreateLeaveRequestSchema } from "@/lib/leave/schema";
 import { createLeaveRequest } from "@/lib/leave/store";
 
+export const runtime = "edge";
+
 // POST /api/leave/requests
 export async function POST(request: NextRequest) {
     try {

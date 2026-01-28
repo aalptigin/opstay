@@ -7,6 +7,8 @@ import { CreateCourseSchema } from "@/lib/training/schema";
 import { getAllCourses, createCourse } from "@/lib/training/store";
 import { CourseStatus } from "@/lib/training/types";
 
+export const runtime = "edge";
+
 // GET /api/training/courses?status=PUBLISHED
 export async function GET(request: NextRequest) {
     try {
