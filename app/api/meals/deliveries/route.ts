@@ -1,7 +1,7 @@
 // Meal Deliveries API
 import { NextRequest, NextResponse } from "next/server";
 import { verifySession, getClientIp } from "@/lib/org/session";
-import { createAuditLog } from "@/lib/org/audit";
+import { createAuditLog } from "@/lib/org/db";
 import { DeliveryActionSchema } from "@/lib/meals/schema";
 import { getDeliveriesByDate, findDelivery, updateDeliveryStatus, getTodayDate } from "@/lib/meals/store";
 import { MealType } from "@/lib/meals/types";

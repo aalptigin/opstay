@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySession, getClientIp } from "@/lib/org/session";
 import { hasPermission } from "@/lib/org/rbac";
-import { createAuditLog } from "@/lib/org/audit";
+import { createAuditLog } from "@/lib/org/db";
 import { CreateMealPlanSchema } from "@/lib/meals/schema";
 import { createMealPlan, getMealPlanByDate } from "@/lib/meals/store";
 
