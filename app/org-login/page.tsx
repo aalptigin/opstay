@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 
-export default function OrgLoginPage() {
+function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [email, setEmail] = useState("");
@@ -162,5 +162,17 @@ export default function OrgLoginPage() {
                 </p>
             </motion.div>
         </div>
+    );
+}
+
+export default function OrgLoginPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">
+                Yükleniyor...
+            </div>
+        }>
+            <LoginForm />
+        </Suspense>
     );
 }
