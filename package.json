@@ -10,6 +10,7 @@
     "pages:build": "npx @cloudflare/next-on-pages@1"
   },
   "dependencies": {
+    "@swc/helpers": "^0.5.18",
     "clsx": "^2.1.1",
     "framer-motion": "^12.23.26",
     "lucide-react": "^0.562.0",
