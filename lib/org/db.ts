@@ -126,9 +126,11 @@ const defaultDb: Database = {
             id: "itx_1",
             itemId: "inv_1",
             type: "out",
+            depotType: "cleaning",
             qty: 5,
             requestedBy: "usr_staff1",
             approvedBy: "usr_manager1",
+            approvalStatus: "approved",
             unitId: "unit_1",
             notes: "Temizlik malzemesi çıkışı",
             createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(), // 15 mins ago
