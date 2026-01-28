@@ -52,8 +52,6 @@ export async function GET(request: NextRequest) {
 
         // Fetch Balance for current user (or list if Manager)
         let balances = [];
-        // Fetch Balance for current user (or list if Manager)
-        let balances = [];
         if (user.role === "STAFF") {
             balances = [getBalance(user.id)];
         } else {
