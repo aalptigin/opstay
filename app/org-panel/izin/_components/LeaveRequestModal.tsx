@@ -28,7 +28,7 @@ export function LeaveRequestModal({ isOpen, onClose, onSubmit }: LeaveRequestMod
 
         const result = CreateLeaveRequestSchema.safeParse(formData);
         if (!result.success) {
-            setError(result.error.errors[0].message);
+            setError(result.error.issues[0].message);
             setLoading(false);
             return;
         }
