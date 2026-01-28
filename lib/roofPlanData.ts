@@ -3,12 +3,15 @@
 // PNG Boyutu: 640 x 352 piksel (viewBox bu değerlerle çalışacak)
 // ============================================================================
 
+import { FloorId } from "./floors";
+
 export type EntityKind = "table" | "lounge" | "booth";
 export type EntityStatus = "available" | "reserved" | "occupied" | "blocked";
 
 export interface PlanEntity {
     id: string;
     kind: EntityKind;
+    floorId: FloorId;
     x: number;
     y: number;
     w: number;
@@ -56,73 +59,73 @@ export const PNG_HEIGHT = 352;
 export const ENTITIES: PlanEntity[] = [
     // ==================== ÜST SOL TERAS (1. sıra) ====================
     // T15, T17, T18 grubu
-    { id: "T15", kind: "table", x: 38, y: 15, w: 26, h: 38, capacity: 4, status: "available" },
-    { id: "T17", kind: "table", x: 80, y: 15, w: 26, h: 38, capacity: 4, status: "available" },
-    { id: "T18", kind: "table", x: 122, y: 15, w: 26, h: 38, capacity: 4, status: "available" },
+    { id: "T15", kind: "table", floorId: "teras", x: 38, y: 15, w: 26, h: 38, capacity: 4, status: "available" },
+    { id: "T17", kind: "table", floorId: "teras", x: 80, y: 15, w: 26, h: 38, capacity: 4, status: "available" },
+    { id: "T18", kind: "table", floorId: "teras", x: 122, y: 15, w: 26, h: 38, capacity: 4, status: "available" },
 
     // T20, T22, T24 grubu (mor noktalardan sonra)
-    { id: "T20", kind: "table", x: 200, y: 15, w: 26, h: 38, capacity: 4, status: "available" },
-    { id: "T22", kind: "table", x: 242, y: 15, w: 26, h: 38, capacity: 4, status: "available" },
-    { id: "T24", kind: "table", x: 284, y: 15, w: 26, h: 38, capacity: 4, status: "available" },
+    { id: "T20", kind: "table", floorId: "teras", x: 200, y: 15, w: 26, h: 38, capacity: 4, status: "available" },
+    { id: "T22", kind: "table", floorId: "teras", x: 242, y: 15, w: 26, h: 38, capacity: 4, status: "available" },
+    { id: "T24", kind: "table", floorId: "teras", x: 284, y: 15, w: 26, h: 38, capacity: 4, status: "available" },
 
     // ==================== BAR YANI (Sağ Üst) ====================
-    { id: "T26", kind: "table", x: 420, y: 15, w: 26, h: 38, capacity: 4, status: "available" },
-    { id: "T28", kind: "table", x: 462, y: 15, w: 26, h: 38, capacity: 4, status: "available" },
-    { id: "T30", kind: "table", x: 504, y: 15, w: 26, h: 38, capacity: 4, status: "available" },
+    { id: "T26", kind: "table", floorId: "teras", x: 420, y: 15, w: 26, h: 38, capacity: 4, status: "available" },
+    { id: "T28", kind: "table", floorId: "teras", x: 462, y: 15, w: 26, h: 38, capacity: 4, status: "available" },
+    { id: "T30", kind: "table", floorId: "teras", x: 504, y: 15, w: 26, h: 38, capacity: 4, status: "available" },
 
     // ==================== 2. SIRA ====================
-    { id: "T14", kind: "table", x: 10, y: 72, w: 26, h: 32, capacity: 4, status: "available" },
+    { id: "T14", kind: "table", floorId: "teras", x: 10, y: 72, w: 26, h: 32, capacity: 4, status: "available" },
 
-    { id: "T16", kind: "table", x: 80, y: 78, w: 22, h: 20, capacity: 2, status: "available" },
-    { id: "T19", kind: "table", x: 122, y: 78, w: 22, h: 20, capacity: 2, status: "available" },
+    { id: "T16", kind: "table", floorId: "teras", x: 80, y: 78, w: 22, h: 20, capacity: 2, status: "available" },
+    { id: "T19", kind: "table", floorId: "teras", x: 122, y: 78, w: 22, h: 20, capacity: 2, status: "available" },
 
-    { id: "T21", kind: "table", x: 200, y: 78, w: 22, h: 20, capacity: 2, status: "available" },
-    { id: "T23", kind: "table", x: 242, y: 78, w: 22, h: 20, capacity: 2, status: "available" },
+    { id: "T21", kind: "table", floorId: "teras", x: 200, y: 78, w: 22, h: 20, capacity: 2, status: "available" },
+    { id: "T23", kind: "table", floorId: "teras", x: 242, y: 78, w: 22, h: 20, capacity: 2, status: "available" },
 
-    { id: "T25", kind: "table", x: 420, y: 78, w: 22, h: 20, capacity: 2, status: "available" },
-    { id: "T27", kind: "table", x: 462, y: 78, w: 22, h: 20, capacity: 2, status: "available" },
-    { id: "T29", kind: "table", x: 504, y: 78, w: 22, h: 20, capacity: 2, status: "available" },
+    { id: "T25", kind: "table", floorId: "teras", x: 420, y: 78, w: 22, h: 20, capacity: 2, status: "available" },
+    { id: "T27", kind: "table", floorId: "teras", x: 462, y: 78, w: 22, h: 20, capacity: 2, status: "available" },
+    { id: "T29", kind: "table", floorId: "teras", x: 504, y: 78, w: 22, h: 20, capacity: 2, status: "available" },
 
     // ==================== LOCA ÜST SIRA ====================
-    { id: "L2", kind: "lounge", x: 68, y: 127, w: 36, h: 32, capacity: 6, status: "available" },
-    { id: "L4", kind: "lounge", x: 120, y: 127, w: 36, h: 32, capacity: 6, status: "available" },
-    { id: "L6", kind: "lounge", x: 172, y: 127, w: 36, h: 32, capacity: 6, status: "available" },
-    { id: "L8", kind: "lounge", x: 224, y: 127, w: 36, h: 32, capacity: 6, status: "available" },
+    { id: "L2", kind: "lounge", floorId: "loca", x: 68, y: 127, w: 36, h: 32, capacity: 6, status: "available" },
+    { id: "L4", kind: "lounge", floorId: "loca", x: 120, y: 127, w: 36, h: 32, capacity: 6, status: "available" },
+    { id: "L6", kind: "lounge", floorId: "loca", x: 172, y: 127, w: 36, h: 32, capacity: 6, status: "available" },
+    { id: "L8", kind: "lounge", floorId: "loca", x: 224, y: 127, w: 36, h: 32, capacity: 6, status: "available" },
 
     // ==================== LOCA ALT SIRA ====================
-    { id: "L1", kind: "lounge", x: 68, y: 185, w: 36, h: 32, capacity: 6, status: "available" },
-    { id: "L3", kind: "lounge", x: 120, y: 185, w: 36, h: 32, capacity: 6, status: "available" },
-    { id: "L5", kind: "lounge", x: 172, y: 185, w: 36, h: 32, capacity: 6, status: "available" },
-    { id: "L7", kind: "lounge", x: 224, y: 185, w: 36, h: 32, capacity: 6, status: "available" },
+    { id: "L1", kind: "lounge", floorId: "loca", x: 68, y: 185, w: 36, h: 32, capacity: 6, status: "available" },
+    { id: "L3", kind: "lounge", floorId: "loca", x: 120, y: 185, w: 36, h: 32, capacity: 6, status: "available" },
+    { id: "L5", kind: "lounge", floorId: "loca", x: 172, y: 185, w: 36, h: 32, capacity: 6, status: "available" },
+    { id: "L7", kind: "lounge", floorId: "loca", x: 224, y: 185, w: 36, h: 32, capacity: 6, status: "available" },
 
     // ==================== T13 ====================
-    { id: "T13", kind: "table", x: 290, y: 155, w: 30, h: 42, capacity: 4, status: "available" },
+    { id: "T13", kind: "table", floorId: "teras", x: 290, y: 155, w: 30, h: 42, capacity: 4, status: "available" },
 
     // ==================== BOOTH B1-B6 ====================
-    { id: "B1", kind: "booth", x: 340, y: 155, w: 24, h: 28, capacity: 4, status: "available" },
-    { id: "B2", kind: "booth", x: 374, y: 155, w: 24, h: 28, capacity: 4, status: "available" },
-    { id: "B3", kind: "booth", x: 408, y: 155, w: 24, h: 28, capacity: 4, status: "available" },
-    { id: "B4", kind: "booth", x: 442, y: 155, w: 24, h: 28, capacity: 4, status: "available" },
-    { id: "B5", kind: "booth", x: 476, y: 155, w: 24, h: 28, capacity: 4, status: "available" },
-    { id: "B6", kind: "booth", x: 510, y: 155, w: 24, h: 28, capacity: 4, status: "available" },
+    { id: "B1", kind: "booth", floorId: "bekleme", x: 340, y: 155, w: 24, h: 28, capacity: 4, status: "available" },
+    { id: "B2", kind: "booth", floorId: "bekleme", x: 374, y: 155, w: 24, h: 28, capacity: 4, status: "available" },
+    { id: "B3", kind: "booth", floorId: "bekleme", x: 408, y: 155, w: 24, h: 28, capacity: 4, status: "available" },
+    { id: "B4", kind: "booth", floorId: "bekleme", x: 442, y: 155, w: 24, h: 28, capacity: 4, status: "available" },
+    { id: "B5", kind: "booth", floorId: "bekleme", x: 476, y: 155, w: 24, h: 28, capacity: 4, status: "available" },
+    { id: "B6", kind: "booth", floorId: "bekleme", x: 510, y: 155, w: 24, h: 28, capacity: 4, status: "available" },
 
     // ==================== SOL ALT (SAHNE YANI) ====================
-    { id: "T1", kind: "table", x: 10, y: 244, w: 24, h: 32, capacity: 4, status: "available" },
-    { id: "T2", kind: "table", x: 10, y: 292, w: 24, h: 32, capacity: 4, status: "available" },
+    { id: "T1", kind: "table", floorId: "teras", x: 10, y: 244, w: 24, h: 32, capacity: 4, status: "available" },
+    { id: "T2", kind: "table", floorId: "teras", x: 10, y: 292, w: 24, h: 32, capacity: 4, status: "available" },
 
     // ==================== ALT TERAS ÜST SIRA ====================
-    { id: "T3", kind: "table", x: 68, y: 244, w: 22, h: 20, capacity: 2, status: "available" },
-    { id: "T5", kind: "table", x: 108, y: 244, w: 22, h: 20, capacity: 2, status: "available" },
-    { id: "T7", kind: "table", x: 152, y: 244, w: 22, h: 20, capacity: 2, status: "available" },
-    { id: "T9", kind: "table", x: 196, y: 244, w: 22, h: 20, capacity: 2, status: "available" },
-    { id: "T11", kind: "table", x: 260, y: 244, w: 22, h: 20, capacity: 2, status: "available" },
+    { id: "T3", kind: "table", floorId: "teras", x: 68, y: 244, w: 22, h: 20, capacity: 2, status: "available" },
+    { id: "T5", kind: "table", floorId: "teras", x: 108, y: 244, w: 22, h: 20, capacity: 2, status: "available" },
+    { id: "T7", kind: "table", floorId: "teras", x: 152, y: 244, w: 22, h: 20, capacity: 2, status: "available" },
+    { id: "T9", kind: "table", floorId: "teras", x: 196, y: 244, w: 22, h: 20, capacity: 2, status: "available" },
+    { id: "T11", kind: "table", floorId: "teras", x: 260, y: 244, w: 22, h: 20, capacity: 2, status: "available" },
 
     // ==================== ALT TERAS ALT SIRA ====================
-    { id: "T4", kind: "table", x: 68, y: 292, w: 24, h: 32, capacity: 4, status: "available" },
-    { id: "T6", kind: "table", x: 108, y: 292, w: 24, h: 32, capacity: 4, status: "available" },
-    { id: "T8", kind: "table", x: 152, y: 292, w: 24, h: 32, capacity: 4, status: "available" },
-    { id: "T10", kind: "table", x: 196, y: 292, w: 24, h: 32, capacity: 4, status: "available" },
-    { id: "T12", kind: "table", x: 260, y: 292, w: 24, h: 32, capacity: 4, status: "available" },
+    { id: "T4", kind: "table", floorId: "teras", x: 68, y: 292, w: 24, h: 32, capacity: 4, status: "available" },
+    { id: "T6", kind: "table", floorId: "teras", x: 108, y: 292, w: 24, h: 32, capacity: 4, status: "available" },
+    { id: "T8", kind: "table", floorId: "teras", x: 152, y: 292, w: 24, h: 32, capacity: 4, status: "available" },
+    { id: "T10", kind: "table", floorId: "teras", x: 196, y: 292, w: 24, h: 32, capacity: 4, status: "available" },
+    { id: "T12", kind: "table", floorId: "teras", x: 260, y: 292, w: 24, h: 32, capacity: 4, status: "available" },
 ];
 
 // ============================================================================

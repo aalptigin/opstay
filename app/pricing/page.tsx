@@ -94,7 +94,7 @@ function NavBar() {
             </Link>
           </div>
           <Link
-            href="/login"
+            href="/panel-secici"
             className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#0ea5ff] to-[#0891e6] px-6 py-2.5 text-sm font-bold text-white hover:from-[#36b6ff] hover:to-[#0ea5ff] transition-all shadow-[0_14px_40px_rgba(14,165,255,.3)] hover:shadow-[0_18px_50px_rgba(14,165,255,.4)] hover:scale-105 active:scale-95"
           >
             Giriş Yap

@@ -4,6 +4,8 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, type HTMLMotionProps } from "framer-motion";
+import { useLanguage } from "./_components/LanguageContext";
+import LanguageSwitcher from "./_components/LanguageSwitcher";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -97,6 +99,8 @@ function LogoMark() {
 }
 
 function NavBar() {
+  const { t } = useLanguage();
+
   return (
     <div className="fixed inset-x-0 top-0 z-50">
       <div className="bg-gradient-to-b from-[#050a16]/98 to-[#050a16]/85 backdrop-blur-2xl border-b border-white/10 shadow-2xl shadow-black/20">
@@ -108,7 +112,7 @@ function NavBar() {
                 OpsStay
               </div>
               <div className="text-[10px] text-white/60 font-medium">
-                İtibar &amp; Müşteri Deneyimi Koruma Platformu
+                {t("İtibar & Müşteri Deneyimi Koruma Platformu", "Reputation & Customer Experience Protection Platform")}
               </div>
             </div>
           </div>
@@ -117,27 +121,74 @@ function NavBar() {
               href="/cozumler"
               className="hover:text-white transition-all relative after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-0.5 after:bg-[#0ea5ff] after:transition-all hover:after:w-full"
             >
-              Çözümler
+              {t("Çözümler", "Solutions")}
             </Link>
             <Link
               href="/hakkimizda"
               className="hover:text-white transition-all relative after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-0.5 after:bg-[#0ea5ff] after:transition-all hover:after:w-full"
             >
-              Hakkımızda
+              {t("Hakkımızda", "About Us")}
             </Link>
             <Link
               href="/pricing"
               className="hover:text-white transition-all relative after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-0.5 after:bg-[#0ea5ff] after:transition-all hover:after:w-full"
             >
-              Fiyatlandırma
+              {t("Fiyatlandırma", "Pricing")}
             </Link>
           </div>
-          <Link
-            href="/login"
-            className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#0ea5ff] to-[#0891e6] px-6 py-2.5 text-sm font-bold text-white hover:from-[#36b6ff] hover:to-[#0ea5ff] transition-all shadow-[0_14px_40px_rgba(14,165,255,.3)] hover:shadow-[0_18px_50px_rgba(14,165,255,.4)] hover:scale-105 active:scale-95"
-          >
-            Giriş Yap
-          </Link>
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher />
+            <div className="relative group">
+              <button
+                type="button"
+                className="inline-flex items-center justify-center gap-1.5 rounded-full bg-gradient-to-r from-[#0ea5ff] to-[#0891e6] px-6 py-2.5 text-sm font-bold text-white hover:from-[#36b6ff] hover:to-[#0ea5ff] transition-all shadow-[0_14px_40px_rgba(14,165,255,.3)] hover:shadow-[0_18px_50px_rgba(14,165,255,.4)] hover:scale-105 active:scale-95"
+              >
+                {t("Giriş Yap", "Login")}
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {/* Hover Dropdown */}
+              <div className="absolute right-0 top-full w-80 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 group-hover:pointer-events-auto pointer-events-none">
+                <div className="rounded-2xl border border-white/10 bg-[#0b1220]/95 backdrop-blur-xl shadow-2xl overflow-hidden mt-2">
+                  {/* Rezervasyon Yönetimi */}
+                  <Link
+                    href="/login"
+                    className="flex items-center gap-4 p-5 hover:bg-white/5 transition-all border-b border-white/10"
+                  >
+                    <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 border border-blue-500/30 flex items-center justify-center flex-shrink-0">
+                      <span className="text-2xl">📅</span>
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-white font-bold text-sm">{t("Rezervasyon Yönetimi", "Reservation Management")}</div>
+                      <div className="text-white/60 text-xs mt-0.5">{t("Misafir & Masa Operasyonları", "Guest & Table Operations")}</div>
+                    </div>
+                    <svg className="w-5 h-5 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+
+                  {/* Depo & Organizasyon */}
+                  <Link
+                    href="/org-login"
+                    className="flex items-center gap-4 p-5 hover:bg-white/5 transition-all"
+                  >
+                    <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
+                      <span className="text-2xl">📦</span>
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-white font-bold text-sm">{t("Depo & Organizasyon", "Warehouse & Organization")}</div>
+                      <div className="text-white/60 text-xs mt-0.5">{t("Araç, Stok & Personel Yönetimi", "Vehicle, Stock & Staff Management")}</div>
+                    </div>
+                    <svg className="w-5 h-5 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -209,27 +260,33 @@ function Trio() {
 }
 
 function InfoCards() {
+  const { t } = useLanguage();
+
   return (
     <div className="mx-auto mt-12 max-w-6xl px-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
         <div>
           <span className="inline-flex items-center rounded-full bg-gradient-to-r from-[#e8f4ff] to-[#dbeeff] px-5 py-1.5 text-xs font-semibold text-[#0b66c3] border border-[#cfe9ff] shadow-sm">
-            Ürün konumlandırma
+            {t("Ürün konumlandırma", "Product Positioning")}
           </span>
           <h3 className="mt-6 text-3xl lg:text-4xl font-extrabold leading-tight text-[#0b1326] tracking-tight">
-            OpsStay, restoranlar için{" "}
+            {t("OpsStay, restoranlar için", "OpsStay is designed for restaurants as a")}{" "}
             <span className="bg-gradient-to-r from-[#0ea5ff] to-[#0891e6] bg-clip-text text-transparent">
-              İtibar ve Müşteri Deneyimi Koruma Platformu
+              {t("İtibar ve Müşteri Deneyimi Koruma Platformu", "Reputation and Customer Experience Protection Platform")}
             </span>{" "}
-            olarak tasarlanır.
+            {t("olarak tasarlanır.", "")}
           </h3>
           <p className="mt-5 text-base text-[#0b1326]/75 leading-relaxed">
-            Rezervasyon sonrası bilgilendirme, müşteri puanlama, Google yorum dönüşümü, olumsuz deneyim geri kazanımı,
-            CRM yönetimi, restoran bazlı uyarı listesi ve kampanya bildirimi tek bir akışta birleşir.
+            {t(
+              "Rezervasyon sonrası bilgilendirme, müşteri puanlama, Google yorum dönüşümü, olumsuz deneyim geri kazanımı, CRM yönetimi, restoran bazlı uyarı listesi ve kampanya bildirimi tek bir akışta birleşir.",
+              "Post-reservation notifications, customer ratings, Google review conversion, negative experience recovery, CRM management, restaurant-based warning lists, and campaign notifications are unified in one flow."
+            )}
           </p>
           <p className="mt-4 text-base text-[#0b1326]/75 leading-relaxed">
-            Yönetim paneli; müşteri ilişkileri ekibinin ve görevli personelin sahada kullanabileceği kadar hızlı, net ve
-            pratik olacak şekilde kurgulanır. Amaç: doğru aksiyonu, doğru anda, minimum tıklamayla almak.
+            {t(
+              "Yönetim paneli; müşteri ilişkileri ekibinin ve görevli personelin sahada kullanabileceği kadar hızlı, net ve pratik olacak şekilde kurgulanır. Amaç: doğru aksiyonu, doğru anda, minimum tıklamayla almak.",
+              "The management panel is designed to be fast, clear, and practical enough for customer relations teams and staff to use in the field. The goal: take the right action at the right time with minimum clicks."
+            )}
           </p>
         </div>
         <div className="space-y-6">
@@ -237,19 +294,19 @@ function InfoCards() {
             className="rounded-2xl border border-[#d9eeff] bg-gradient-to-br from-white to-[#f7fbff] shadow-[0_10px_30px_rgba(10,16,32,.10)] hover:shadow-[0_15px_40px_rgba(10,16,32,.15)] p-6 transition-all"
             whileHover={{ y: -4, transition: { duration: 0.2 } }}
           >
-            <div className="font-bold text-lg text-[#0b1326] mb-1">Neleri önemsiyoruz?</div>
+            <div className="font-bold text-lg text-[#0b1326] mb-1">{t("Neleri önemsiyoruz?", "What do we prioritize?")}</div>
             <ul className="mt-4 space-y-3 text-sm text-[#0b1326]/75 leading-relaxed">
               <li className="flex items-start gap-3">
                 <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#0ea5ff] flex-shrink-0" />
-                <span>Restoran bazlı izolasyon: Uyarı verisi yalnızca ilgili şubede görünür.</span>
+                <span>{t("Restoran bazlı izolasyon: Uyarı verisi yalnızca ilgili şubede görünür.", "Restaurant-based isolation: Warning data is only visible at the relevant branch.")}</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#0ea5ff] flex-shrink-0" />
-                <span>Ölçülebilir fayda: tıklama, dönüşüm, kampanya performansı ve aksiyon raporları.</span>
+                <span>{t("Ölçülebilir fayda: tıklama, dönüşüm, kampanya performansı ve aksiyon raporları.", "Measurable benefits: click, conversion, campaign performance, and action reports.")}</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#0ea5ff] flex-shrink-0" />
-                <span>Mobile-first: hızlı açılış, okunabilirlik ve minimum işlem adımı.</span>
+                <span>{t("Mobile-first: hızlı açılış, okunabilirlik ve minimum işlem adımı.", "Mobile-first: fast loading, readability, and minimum steps.")}</span>
               </li>
             </ul>
           </motion.div>
@@ -257,19 +314,19 @@ function InfoCards() {
             className="rounded-2xl border border-[#d9eeff] bg-gradient-to-br from-white to-[#f7fbff] shadow-[0_10px_30px_rgba(10,16,32,.10)] hover:shadow-[0_15px_40px_rgba(10,16,32,.15)] p-6 transition-all"
             whileHover={{ y: -4, transition: { duration: 0.2 } }}
           >
-            <div className="font-bold text-lg text-[#0b1326] mb-1">Nasıl sonuçlar hedefliyoruz?</div>
+            <div className="font-bold text-lg text-[#0b1326] mb-1">{t("Nasıl sonuçlar hedefliyoruz?", "What results do we target?")}</div>
             <ul className="mt-4 space-y-3 text-sm text-[#0b1326]/75 leading-relaxed">
               <li className="flex items-start gap-3">
                 <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#0ea5ff] flex-shrink-0" />
-                <span>Olumlu deneyimi Google yorumuna dönüştürme oranında artış.</span>
+                <span>{t("Olumlu deneyimi Google yorumuna dönüştürme oranında artış.", "Increase in conversion rate of positive experiences to Google reviews.")}</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#0ea5ff] flex-shrink-0" />
-                <span>Olumsuz deneyimi erken yakalayıp telafi ile itibar kaybını azaltma.</span>
+                <span>{t("Olumsuz deneyimi erken yakalayıp telafi ile itibar kaybını azaltma.", "Reduce reputation loss by catching and compensating for negative experiences early.")}</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#0ea5ff] flex-shrink-0" />
-                <span>CRM segmentasyon + kampanyalarla doluluk ve gelir artırma.</span>
+                <span>{t("CRM segmentasyon + kampanyalarla doluluk ve gelir artırma.", "Increase occupancy and revenue with CRM segmentation + campaigns.")}</span>
               </li>
             </ul>
           </motion.div>
@@ -844,6 +901,8 @@ function ContactSection() {
 }
 
 export default function HomePage() {
+  const { t } = useLanguage();
+
   return (
     <main className="relative isolate min-h-screen bg-[#f7fbff]">
       <AmbientMotionLayer />
@@ -859,18 +918,16 @@ export default function HomePage() {
           <div className="absolute inset-x-0 top-0">
             <div className="mx-auto max-w-6xl px-6">
               <div className="pt-20 md:pt-24 max-w-2xl">
-                <Pill>İTİBAR &amp; MÜŞTERİ DENEYİMİ KORUMA</Pill>
+                <Pill>{t("İTİBAR & MÜŞTERİ DENEYİMİ KORUMA", "REPUTATION & CUSTOMER EXPERIENCE PROTECTION")}</Pill>
                 <motion.h1
                   initial={{ opacity: 0, y: 22 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.9, ease }}
                   className="mt-6 text-4xl md:text-5xl lg:text-6xl font-extrabold leading-[1.1] text-white tracking-tight"
                 >
-                  Olumlu deneyimi
+                  {t("Olumlu deneyimi Google yoruma dönüştürün.", "Convert positive experiences into Google reviews.")}
                   <br />
-                  Google yoruma dönüştürün.
-                  <br />
-                  Olumsuzu erken yakalayıp telafi edin.
+                  {t("Olumsuzu erken yakalayıp telafi edin.", "Catch negative feedback early and compensate.")}
                 </motion.h1>
                 <motion.p
                   initial={{ opacity: 0, y: 22 }}
@@ -878,8 +935,10 @@ export default function HomePage() {
                   transition={{ duration: 0.9, ease, delay: 0.1 }}
                   className="mt-5 text-base md:text-lg text-white/90 leading-relaxed max-w-xl"
                 >
-                  OpsStay; rezervasyon sonrası bilgilendirme, puanlama, Google yorum dönüşümü, geri kazanım araması,
-                  restoran bazlı uyarı listesi ve CRM/kampanya yönetimini tek akışta birleştirir.
+                  {t(
+                    "OpsStay; rezervasyon sonrası bilgilendirme, puanlama, Google yorum dönüşümü, geri kazanım araması, restoran bazlı uyarı listesi ve CRM/kampanya yönetimini tek akışta birleştirir.",
+                    "OpsStay combines post-reservation notifications, ratings, Google review conversion, recovery calls, restaurant-based warning lists, and CRM/campaign management in one flow."
+                  )}
                 </motion.p>
                 <motion.div
                   initial={{ opacity: 0, y: 22 }}
@@ -891,13 +950,13 @@ export default function HomePage() {
                     href="#cozumler"
                     className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#0ea5ff] to-[#0891e6] px-7 py-3 text-sm font-bold text-white hover:from-[#36b6ff] hover:to-[#0ea5ff] transition-all shadow-[0_14px_40px_rgba(14,165,255,.3)] hover:shadow-[0_18px_50px_rgba(14,165,255,.4)] hover:scale-105 active:scale-95"
                   >
-                    OpsStay'i keşfedin
+                    {t("OpsStay'i keşfedin", "Discover OpsStay")}
                   </a>
                   <a
                     href="#iletisim"
                     className="inline-flex items-center justify-center rounded-full bg-white/95 backdrop-blur-sm px-7 py-3 text-sm font-bold text-[#0b1326] hover:bg-white transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
                   >
-                    İletişime Geçin
+                    {t("İletişime Geçin", "Contact Us")}
                   </a>
                 </motion.div>
               </div>
@@ -912,17 +971,19 @@ export default function HomePage() {
         <div className="mt-14">
           <div className="mx-auto max-w-4xl text-center px-6">
             <div className="text-[11px] tracking-[0.35em] text-[#0ea5ff] font-bold">
-              UÇTAN UCA İTİBAR KORUMA AKIŞI
+              {t("UÇTAN UCA İTİBAR KORUMA AKIŞI", "END-TO-END REPUTATION PROTECTION FLOW")}
             </div>
             <h2 className="mt-5 text-3xl md:text-4xl lg:text-5xl font-extrabold text-[#0b1326] leading-tight tracking-tight">
-              Her şube için aynı standart,{" "}
+              {t("Her şube için aynı standart,", "Same standard for every branch,")}{" "}
               <span className="bg-gradient-to-r from-[#0ea5ff] to-[#0891e6] bg-clip-text text-transparent">
-                her aksiyon için ölçülebilir sonuç.
+                {t("her aksiyon için ölçülebilir sonuç.", "measurable results for every action.")}
               </span>
             </h2>
             <p className="mt-5 text-base md:text-lg text-[#0b1326]/75 leading-relaxed max-w-3xl mx-auto">
-              Rezervasyon sonrası mesajlar, puanlama, yorum dönüşümü ve geri kazanım; tek panelde yönetilir.
-              Müşteri deneyimi ölçülür, itibar korunur, ekip doğru anda doğru adımı atar.
+              {t(
+                "Rezervasyon sonrası mesajlar, puanlama, yorum dönüşümü ve geri kazanım; tek panelde yönetilir. Müşteri deneyimi ölçülür, itibar korunur, ekip doğru anda doğru adımı atar.",
+                "Post-reservation messages, ratings, review conversion, and recovery; managed in one panel. Customer experience is measured, reputation is protected, the team takes the right step at the right time."
+              )}
             </p>
           </div>
         </div>
@@ -937,82 +998,102 @@ export default function HomePage() {
       <Reveal id="akıs" className="bg-[#f7fbff] pb-24 pt-8">
         <div className="mx-auto max-w-6xl px-6">
           <div className="inline-flex items-center rounded-full bg-gradient-to-r from-[#e8f4ff] to-[#dbeeff] px-5 py-1.5 text-xs font-semibold text-[#0b66c3] border border-[#cfe9ff] shadow-sm">
-            OpsStay sahada nasıl görünür?
+            {t("OpsStay sahada nasıl görünür?", "How does OpsStay look in the field?")}
           </div>
           <h3 className="mt-5 text-3xl md:text-4xl lg:text-5xl font-extrabold text-[#0b1326] leading-tight tracking-tight max-w-4xl">
-            Ekranda sadece bir panel değil,{" "}
+            {t("Ekranda sadece bir panel değil,", "Not just a panel on the screen,")}{" "}
             <span className="bg-gradient-to-r from-[#0ea5ff] to-[#0891e6] bg-clip-text text-transparent">
-              şubenizin itibar akışı
+              {t("şubenizin itibar akışı", "your branch's reputation flow")}
             </span>{" "}
-            görünür.
+            {t("görünür.", "is visible.")}
           </h3>
           <p className="mt-4 max-w-3xl text-base text-[#0b1326]/75 leading-relaxed">
-            Hostes/rezervasyon ekibi, servis ve yönetim aynı çerçevede çalışır: bilgilendirme → puanlama → dönüşüm / geri kazanım.
-            Her senaryo, scroll ile akış halinde anlatılır.
+            {t(
+              "Hostes/rezervasyon ekibi, servis ve yönetim aynı çerçevede çalışır: bilgilendirme → puanlama → dönüşüm / geri kazanım. Her senaryo, scroll ile akış halinde anlatılır.",
+              "Host/reservation team, service, and management work in the same framework: notification → rating → conversion / recovery. Each scenario is presented in a flowing scroll format."
+            )}
           </p>
 
           <div className="mt-14 space-y-14">
             <ScenarioRow
-              tag="Rezervasyon ekibi"
-              titleOnImage="Hostes / Rezervasyon"
+              tag={t("Rezervasyon ekibi", "Reservation Team")}
+              titleOnImage={t("Hostes / Rezervasyon", "Host / Reservation")}
               caption=""
               image="/images/scenario-1.jpg"
-              heading="Rezervasyon sonrası otomatik bilgilendirme."
-              body="Rezervasyon oluşturulduğunda konum, onay bilgisi ve opsiyonel değişiklik/iptal bağlantısı otomatik gider. Şube bazında şablon ve zamanlama yönetilir."
+              heading={t("Rezervasyon sonrası otomatik bilgilendirme.", "Automatic notification after reservation.")}
+              body={t(
+                "Rezervasyon oluşturulduğunda konum, onay bilgisi ve opsiyonel değişiklik/iptal bağlantısı otomatik gider. Şube bazında şablon ve zamanlama yönetilir.",
+                "When a reservation is created, location, confirmation information, and optional change/cancellation links are sent automatically. Templates and scheduling are managed per branch."
+              )}
               bullets={[
-                "Template + saat planlaması + dil seçimi ile şube bazlı yönetim.",
-                "Harita linki ve rezervasyon detayı tek mesajda.",
-                "Misafir yolculuğu daha düzenli ve ölçülebilir hale gelir.",
+                t("Template + saat planlaması + dil seçimi ile şube bazlı yönetim.", "Branch-specific management with template + time planning + language selection."),
+                t("Harita linki ve rezervasyon detayı tek mesajda.", "Map link and reservation details in one message."),
+                t("Misafir yolculuğu daha düzenli ve ölçülebilir hale gelir.", "Guest journey becomes more organized and measurable."),
               ]}
-              quote="Mesajlar otomatik gidince ekip aynı işi tekrar tekrar yapmıyor; odağımız hizmete kayıyor."
+              quote={t(
+                "Mesajlar otomatik gidince ekip aynı işi tekrar tekrar yapmıyor; odağımız hizmete kayıyor.",
+                "When messages go out automatically, the team doesn't repeat the same work; our focus shifts to service."
+              )}
             />
             <ScenarioRow
-              tag="Müşteri ilişkileri"
-              titleOnImage="Geri Kazanım / Çağrı"
+              tag={t("Müşteri ilişkileri", "Customer Relations")}
+              titleOnImage={t("Geri Kazanım / Çağrı", "Recovery / Call")}
               caption=""
               image="/images/scenario-2.jpg"
-              heading="Olumsuz deneyimi erken yakalayın ve telafi edin."
+              heading={t("Olumsuz deneyimi erken yakalayın ve telafi edin.", "Catch negative experiences early and compensate.")}
               body="Skor eşik altındaysa görev açılır: “Müşteriyi ara, olumsuz olan nedir?” Sebep kategorisi, notlar ve aksiyon CRM’e işlenir."
               bullets={[
-                "Düşük skor → otomatik görev + önceliklendirme.",
-                "Arama sonucu CRM zaman çizelgesinde saklanır.",
-                "Tekrarlayan olumsuzluklarda uyarı seviyesi yükselir.",
+                t("Düşük skor → otomatik görev + önceliklendirme.", "Low score → automatic task + prioritization."),
+                t("Arama sonucu CRM zaman çizelgesinde saklanır.", "Call results are saved in the CRM timeline."),
+                t("Tekrarlayan olumsuzluklarda uyarı seviyesi yükselir.", "Warning level increases with repeated negatives."),
               ]}
-              quote="Sorun büyümeden aramak, hem itibar hem sadakat tarafında fark yaratıyor."
+              quote={t(
+                "Sorun büyümeden aramak, hem itibar hem sadakat tarafında fark yaratıyor.",
+                "Calling before the problem grows makes a difference in both reputation and loyalty."
+              )}
             />
             <ScenarioRow
-              tag="Servis ekibi"
-              titleOnImage="Servis / Operasyon"
+              tag={t("Servis ekibi", "Service Team")}
+              titleOnImage={t("Servis / Operasyon", "Service / Operations")}
               caption=""
               image="/images/scenario-3.jpg"
-              heading="Deneyimi ölçün, aksiyonu standardize edin."
-              body="Puan ve yorumlar tek yerde toplanır. Operasyon ekibi, canlı akıştan hangi misafire hangi aksiyonun gerektiğini anında görür."
+              heading={t("Deneyimi ölçün, aksiyonu standardize edin.", "Measure experience, standardize action.")}
+              body={t(
+                "Puan ve yorumlar tek yerde toplanır. Operasyon ekibi, canlı akıştan hangi misafire hangi aksiyonun gerektiğini anında görür.",
+                "Scores and comments are collected in one place. The operations team instantly sees which guest needs which action from the live feed."
+              )}
               bullets={[
-                "Puanlama API veya web form üzerinden anlık toplanır.",
-                "Olumlu deneyim → Google yoruma tek tık yönlendirme.",
-                "Raporlama ile ekip performansı ve süreç kalitesi izlenir.",
+                t("Puanlama API veya web form üzerinden anlık toplanır.", "Ratings are collected instantly via API or web form."),
+                t("Olumlu deneyim → Google yoruma tek tık yönlendirme.", "Positive experience → one-click redirect to Google review."),
+                t("Raporlama ile ekip performansı ve süreç kalitesi izlenir.", "Team performance and process quality are monitored through reporting."),
               ]}
               quote="Aksiyon netleşince servis tarafında ‘ne yapacağız’ sorusu ortadan kalkıyor."
             />
             <ScenarioRow
-              tag="Yönetim"
-              titleOnImage="CRM / Kampanya"
+              tag={t("Yönetim", "Management")}
+              titleOnImage={t("CRM / Kampanya", "CRM / Campaign")}
               caption=""
               image="/images/scenario-4.jpg"
-              heading="CRM ile ilişkiyi sistematik yönetin."
-              body="Rezervasyon geçmişi + puanlar + görevler + notlarla müşteri profili oluşur. Segment bazlı kampanyalarla doluluk ve gelir artırılır."
+              heading={t("CRM ile ilişkiyi sistematik yönetin.", "Systematically manage relationships with CRM.")}
+              body={t(
+                "Rezervasyon geçmişi + puanlar + görevler + notlarla müşteri profili oluşur. Segment bazlı kampanyalarla doluluk ve gelir artırılır.",
+                "Customer profile is formed with reservation history + scores + tasks + notes. Occupancy and revenue are increased with segment-based campaigns."
+              )}
               bullets={[
-                "VIP/düzenli/hassas/riskli segmentasyon.",
-                "Kampanya planlama → gönderim → dönüşüm raporu.",
-                "Restoran bazlı uyarı listesi izolasyonu ile güvenli kullanım.",
+                t("VIP/düzenli/hassas/riskli segmentasyon.", "VIP/regular/sensitive/risky segmentation."),
+                t("Kampanya planlama → gönderim → dönüşüm raporu.", "Campaign planning → sending → conversion report."),
+                t("Restoran bazlı uyarı listesi izolasyonu ile güvenli kullanım.", "Safe usage with restaurant-based warning list isolation."),
               ]}
-              quote="Artık yalnızca gün kurtarmıyoruz; müşteri ilişkisini yönetiyoruz."
+              quote={t(
+                "Artık yalnızca gün kurtarmıyoruz; müşteri ilişkisini yönetiyoruz.",
+                "We're not just saving the day anymore; we're managing customer relationships."
+              )}
             />
           </div>
 
           <div className="mt-14 flex items-center justify-between text-xs text-[#0b1326]/50 flex-wrap gap-4">
-            <span>© 2026 OpsStay. Tüm hakları saklıdır.</span>
-            <span>OpsStay, itibar ve deneyim akışını uçtan uca yönetir.</span>
+            <span>{t("© 2026 OpsStay. Tüm hakları saklıdır.", "© 2026 OpsStay. All rights reserved.")}</span>
+            <span>{t("OpsStay, itibar ve deneyim akışını uçtan uca yönetir.", "OpsStay manages reputation and experience flow end-to-end.")}</span>
           </div>
         </div>
       </Reveal>

@@ -3,7 +3,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ENTITIES,
-  SEAT_MARKERS,
   GREEN_PLANTERS,
   PURPLE_BLOCKS,
   WALL_LINES,
@@ -11,13 +10,14 @@ import {
   SAHNE_AREA,
   BAR_AREA,
   KITCHEN_AREA,
-  STAIRS_AREA,
   STATUS_COLORS,
   PNG_WIDTH,
   PNG_HEIGHT,
   EntityStatus,
-  PlanEntity,
+  SEAT_MARKERS,
 } from "../../../../lib/roofPlanData";
+import { computeFloorStats } from "../../../../lib/planStats";
+import PlanStatsOverlay from "./PlanStatsOverlay";
 
 type TableStatus = "free" | "occupied" | "reserved" | "unknown";
 
@@ -76,7 +76,6 @@ export default function RoofFloorPlanInline({ selectedTable, onSelect, date, tim
   const [statuses, setStatuses] = useState<Record<string, TableStatus>>({});
   const [loading, setLoading] = useState(false);
   const [selectedZone, setSelectedZone] = useState<"all" | "teras" | "loca" | "bekleme">("all");
-  const [showDetails, setShowDetails] = useState(false);
 
   const selected = normTable(selectedTable || "");
 
@@ -98,14 +97,13 @@ export default function RoofFloorPlanInline({ selectedTable, onSelect, date, tim
   const filteredEntities = useMemo(() => {
     return ENTITIES.filter(e => {
       if (selectedZone === "all") return true;
-      // Infer zone from ID
-      let zone = "teras";
-      if (e.id.startsWith("L")) zone = "loca";
-      if (e.id.startsWith("B")) zone = "bekleme"; // Booth -> Bekleme logic from previous file? Or just map it.
-      // Previous file: B* -> zone: "bekleme".
-
-      return zone === selectedZone;
+      return e.floorId === selectedZone;
     });
+  }, [selectedZone]);
+
+  // Compute stats based on selected zone
+  const floorStats = useMemo(() => {
+    return computeFloorStats(selectedZone);
   }, [selectedZone]);
 
   const zoneStats = useMemo(() => {
@@ -162,7 +160,10 @@ export default function RoofFloorPlanInline({ selectedTable, onSelect, date, tim
         </div>
       </div>
 
-      <div className="bg-[#050810] p-4 flex justify-center">
+      <div className="bg-[#050810] p-4 flex justify-center relative">
+        {/* Stats Overlay */}
+        <PlanStatsOverlay stats={floorStats} />
+
         {/* RESPONSIVE CONTAINER: w-full, but aspect ratio preserved */}
         <div className="w-full max-w-[900px]">
           <svg
