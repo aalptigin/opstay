@@ -12,19 +12,20 @@ export async function GET(request: NextRequest) {
         const ip = getClientIp(request.headers);
         const session = verifySession(token, ip);
         if (!session.valid || !session.user) return NextResponse.json({ ok: false, error: session.error }, { status: 401 });
+        const user = session.user;
 
         const { searchParams } = new URL(request.url);
         const unitId = searchParams.get("unitId"); // Optional filter from UI
 
         // Determine scope based on role
         let targetUnitId: string | undefined = unitId || undefined;
-        const canViewAll = session.user.role === "PRESIDENT";
+        const canViewAll = user.role === "PRESIDENT";
 
-        if (!canViewAll && session.user.role === "UNIT_MANAGER") {
+        if (!canViewAll && user.role === "UNIT_MANAGER") {
             // Force unit manager to their unit
-            targetUnitId = session.user.unitId;
+            targetUnitId = user.unitId;
         }
-        if (session.user.role === "STAFF") {
+        if (user.role === "STAFF") {
             // Staff sees only their own requests usually, but for overview maybe restricted?
             // Prompt says: "İzinli/Staff: sadece kendi taleplerini oluşturur".
             // We will filter by personId later if role is staff
@@ -32,8 +33,8 @@ export async function GET(request: NextRequest) {
 
         // Fetch Requests
         let requests = getLeaveRequests({ unitId: targetUnitId || undefined });
-        if (session.user.role === "STAFF") {
-            requests = requests.filter(r => r.personId === session.user.id);
+        if (user.role === "STAFF") {
+            requests = requests.filter(r => r.personId === user.id);
         }
 
         // Calculate KPI (mock logic based on fetched requests)
@@ -51,8 +52,10 @@ export async function GET(request: NextRequest) {
 
         // Fetch Balance for current user (or list if Manager)
         let balances = [];
-        if (session.user.role === "STAFF") {
-            balances = [getBalance(session.user.id)];
+        // Fetch Balance for current user (or list if Manager)
+        let balances = [];
+        if (user.role === "STAFF") {
+            balances = [getBalance(user.id)];
         } else {
             // Manager/President sees balances of people in their scope
             // For now mock: just return a few mock balances corresponding to requests
@@ -71,8 +74,8 @@ export async function GET(request: NextRequest) {
             balances,
             permissions: {
                 canCreate: true,
-                canApprove: ["PRESIDENT", "UNIT_MANAGER"].includes(session.user.role),
-                canManageBalances: session.user.role === "PRESIDENT"
+                canApprove: ["PRESIDENT", "UNIT_MANAGER"].includes(user.role),
+                canManageBalances: user.role === "PRESIDENT"
             }
         };
 
