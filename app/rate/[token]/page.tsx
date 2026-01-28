@@ -4,7 +4,10 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 
-export const runtime = 'edge';
+export const dynamic = "force-static";
+export async function generateStaticParams() {
+    return [];
+}
 
 type RatingData = {
     rating_id: string;

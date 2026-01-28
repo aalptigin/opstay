@@ -5,7 +5,10 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { Vehicle, VehicleAssignment, MaintenanceTicket, User, VehicleStatus } from "@/lib/org/types";
 
-export const runtime = "edge";
+export const dynamic = "force-static";
+export async function generateStaticParams() {
+    return [];
+}
 
 const STATUS_CONFIG: Record<VehicleStatus, { label: string; bgColor: string; textColor: string }> = {
     available: { label: "Kullanılabilir", bgColor: "bg-emerald-100", textColor: "text-emerald-700" },

@@ -5,7 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Course, LearnerProgress, CONTENT_TYPE_ICONS, STATUS_LABELS, STATUS_COLORS } from "@/lib/training/types";
 
-export const runtime = "edge";
+export const dynamic = "force-static";
+export async function generateStaticParams() {
+    return [];
+}
 
 interface QuizQuestionClient {
     id: string;
