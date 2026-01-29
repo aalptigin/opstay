@@ -33,7 +33,7 @@ export function VehicleRequestModal({
         setLoading(true);
 
         try {
-            const res = await fetch("/api/org/vehicle-requests", {
+            const res = await fetch("/api/org/vehicles/requests", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
