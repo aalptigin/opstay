@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySession, getClientIp } from "@/lib/org/session";
 import { getLeaveRequests, getBalance } from "@/lib/leave/store";
-import { LeaveOverviewPayload, LeaveStatus } from "@/lib/leave/types";
+import { LeaveOverviewPayload } from "@/lib/leave/types";
 
 export const runtime = "edge";
 
@@ -40,16 +40,16 @@ export async function GET(request: NextRequest) {
         }
 
         // Calculate KPI (mock logic based on fetched requests)
-        const pendingCount = requests.filter(r => r.status === LeaveStatus.PENDING).length;
+        const pendingCount = requests.filter(r => r.status === "pending").length;
 
         const todayStr = new Date().toISOString().split("T")[0];
         const todayOutCount = requests.filter(r =>
-            r.status === LeaveStatus.APPROVED &&
+            r.status === "approved" &&
             r.startDate <= todayStr && r.endDate >= todayStr
         ).length;
 
         const approvedMonthDays = requests
-            .filter(r => r.status === LeaveStatus.APPROVED)
+            .filter(r => r.status === "approved")
             .reduce((acc, r) => acc + r.days, 0); // Corrected totalDays to days
 
         // Fetch Balance for current user (or list if Manager)
