@@ -27,7 +27,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         const body = await request.json();
         const parsed = ApproveLeaveSchema.safeParse(body);
 
-        const req = updateLeaveStatus(id, LeaveStatus.APPROVED, { id: user.id, name: user.name }, parsed.data?.note);
+        const req = updateLeaveStatus(id, "approved", user.id);
 
         createAuditLog({
             actorId: user.id,
