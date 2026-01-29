@@ -1,12 +1,11 @@
 
 import VehicleDetailClient from "./ClientPage";
 
-export const dynamic = "force-static";
+// export const dynamic = "force-static"; // Conflict with runtime=edge
 export const runtime = "edge";
 
-export async function generateStaticParams() {
-    return [];
-}
+// generateStaticParams removed to support Edge Runtime
+
 
 export default function Page() {
     return <VehicleDetailClient />;
