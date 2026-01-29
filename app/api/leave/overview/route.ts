@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
         // Fetch Requests
         let requests = getLeaveRequests({ unitId: targetUnitId || undefined });
         if (user.role === "STAFF") {
-            requests = requests.filter(r => r.personId === user.id);
+            requests = requests.filter(r => r.userId === user.id);
         }
 
         // Calculate KPI (mock logic based on fetched requests)
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
 
         const approvedMonthDays = requests
             .filter(r => r.status === LeaveStatus.APPROVED)
-            .reduce((acc, r) => acc + r.totalDays, 0); // Simplified, ideally check month overlap
+            .reduce((acc, r) => acc + r.days, 0); // Corrected totalDays to days
 
         // Fetch Balance for current user (or list if Manager)
         let balances = [];
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
         } else {
             // Manager/President sees balances of people in their scope
             // For now mock: just return a few mock balances corresponding to requests
-            const userIds = Array.from(new Set(requests.map(r => r.personId)));
+            const userIds = Array.from(new Set(requests.map(r => r.userId)));
             balances = userIds.map(uid => getBalance(uid));
         }
 
