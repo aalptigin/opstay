@@ -2,8 +2,11 @@
 // Replace with Prisma/PostgreSQL in production
 
 import { User, Unit, Session, AuditLog, Vehicle, VehicleAssignment, MaintenanceTicket, InventoryItem, InventoryTxn, MealTxn, LeaveRequest, TrainingLog } from "./types";
+import fs from "fs";
+import path from "path";
 
 const STORAGE_KEY = "opsstay_org_db";
+const DB_FILE_PATH = "org-db.json";
 
 interface Database {
     users: User[];
@@ -170,6 +173,11 @@ declare global {
     var __orgDb: Database | undefined;
 }
 
+function getDbFilePath() {
+    // Ensure we are looking at the root of the project
+    return path.join(process.cwd(), DB_FILE_PATH);
+}
+
 function getDb(): Database {
     if (typeof window !== "undefined") {
         // Client-side: use localStorage
@@ -183,12 +191,55 @@ function getDb(): Database {
         }
         return JSON.parse(JSON.stringify(defaultDb));
     } else {
-        // Server-side: use globalThis to persist across hot reloads
-        if (!globalThis.__orgDb) {
-            console.log("🗄️ [DB] Initializing new database");
-            globalThis.__orgDb = JSON.parse(JSON.stringify(defaultDb));
+        // Server-side: Persistent File Storage (JSON DB)
+        const filePath = getDbFilePath();
+
+        // LOGGING TO DEBUG PERSISTENCE ISSUES
+        console.log("🐛 [DB Debug] Reading DB at:", new Date().toISOString());
+        console.log("🐛 [DB Debug] Path:", filePath);
+
+        // 1. Check if global cache exists (fast path)
+        // DISABLE CACHE FOR DEBUGGING - ALWAYS READ FILE
+        // if (globalThis.__orgDb) {
+        //     return globalThis.__orgDb;
+        // }
+
+        // 2. Try reading from file
+        if (fs.existsSync(filePath)) {
+            try {
+                const fileContent = fs.readFileSync(filePath, "utf-8");
+                if (fileContent.trim()) {
+                    const data = JSON.parse(fileContent);
+                    console.log(`🗄️ [DB] Loaded from file. Users: ${data.users.length}`);
+                    globalThis.__orgDb = data;
+                    return data;
+                }
+            } catch (e) {
+                console.error("❌ [DB] Failed to read db file, resetting:", e);
+            }
+        } else {
+            console.log("⚠️ [DB Debug] File NOT found at path.");
         }
-        return globalThis.__orgDb!;
+
+        // 3. Fallback to cache if file failed?
+        if (globalThis.__orgDb) {
+            console.log("⚠️ [DB Debug] Falling back to global cache.");
+            return globalThis.__orgDb;
+        }
+
+        // 4. If no file or error, use default and save it
+        console.log("🗄️ [DB] Initializing new database file (Factory Default)");
+        const newDb = JSON.parse(JSON.stringify(defaultDb));
+
+        try {
+            fs.writeFileSync(filePath, JSON.stringify(newDb, null, 2));
+            console.log("✅ [DB] Created new DB file at:", filePath);
+        } catch (e) {
+            console.error("❌ [DB] Failed to write initial db file:", e);
+        }
+
+        globalThis.__orgDb = newDb;
+        return newDb;
     }
 }
 
@@ -196,8 +247,17 @@ function saveDb(db: Database): void {
     if (typeof window !== "undefined") {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
     } else {
-        // Server-side: globalThis already references the same object
+        // Server-side: Save to global AND Disk
         globalThis.__orgDb = db;
+
+        try {
+            const filePath = getDbFilePath();
+            console.log("💾 [DB Debug] Saving to:", filePath);
+            fs.writeFileSync(filePath, JSON.stringify(db, null, 2));
+            console.log("💾 [DB] Saved successfully. Users:", db.users.length);
+        } catch (e) {
+            console.error("❌ [DB] Failed to save to file:", e);
+        }
     }
 }
 

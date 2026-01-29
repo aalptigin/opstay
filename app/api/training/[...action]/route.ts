@@ -18,7 +18,7 @@ import {
 } from "@/lib/training/store";
 import { CourseStatus } from "@/lib/training/types";
 
-export const runtime = "edge";
+// export const runtime = "edge";
 
 // --- Helpers ---
 const unauthorized = () => NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });

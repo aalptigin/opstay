@@ -1,0 +1,421 @@
+{
+  "users": [
+    {
+      "id": "usr_president",
+      "email": "baskan@opstay.com",
+      "name": "Ahmet Başkan",
+      "passwordHash": "123456",
+      "role": "PRESIDENT",
+      "status": "active",
+      "createdAt": "2026-01-29T11:19:33.831Z"
+    },
+    {
+      "id": "usr_manager1",
+      "email": "birim1@opstay.com",
+      "name": "Mehmet Sorumlu",
+      "passwordHash": "123456",
+      "role": "UNIT_MANAGER",
+      "unitId": "unit_1",
+      "status": "active",
+      "createdAt": "2026-01-29T11:19:33.831Z"
+    },
+    {
+      "id": "usr_staff1",
+      "email": "personel1@opstay.com",
+      "name": "Ali Personel",
+      "passwordHash": "123456",
+      "role": "STAFF",
+      "unitId": "unit_1",
+      "status": "active",
+      "createdAt": "2026-01-29T11:19:33.831Z"
+    },
+    {
+      "email": "yeni@opstay.com",
+      "name": "yeni",
+      "passwordHash": "12345a",
+      "role": "PRESIDENT",
+      "status": "active",
+      "id": "usr_1769685746264_tif0bo",
+      "createdAt": "2026-01-29T11:22:26.264Z"
+    },
+    {
+      "email": "yeni@gmail.com",
+      "name": "alp",
+      "passwordHash": "12345a",
+      "role": "PRESIDENT",
+      "status": "active",
+      "id": "usr_1769686356265_sw5h7z",
+      "createdAt": "2026-01-29T11:32:36.265Z"
+    },
+    {
+      "email": "yeni2@gmail.com",
+      "name": "yeni yeni",
+      "passwordHash": "12345a",
+      "role": "PRESIDENT",
+      "status": "active",
+      "id": "usr_1769686558986_4x1x95",
+      "createdAt": "2026-01-29T11:35:58.986Z"
+    },
+    {
+      "email": "alp@gmail.com",
+      "name": "yeni yeni",
+      "passwordHash": "12345a",
+      "role": "PRESIDENT",
+      "status": "active",
+      "id": "usr_1769686691703_b8p9nd",
+      "createdAt": "2026-01-29T11:38:11.703Z"
+    },
+    {
+      "email": "alp2@gmail.com",
+      "name": "alp alp",
+      "passwordHash": "12345a",
+      "role": "PRESIDENT",
+      "status": "active",
+      "id": "usr_1769686912769_5ukr0n",
+      "createdAt": "2026-01-29T11:41:52.769Z"
+    },
+    {
+      "email": "yeni3@gmail.com",
+      "name": "yeni",
+      "passwordHash": "12345a",
+      "role": "PRESIDENT",
+      "status": "active",
+      "id": "usr_1769687078813_nl8j75",
+      "createdAt": "2026-01-29T11:44:38.813Z"
+    },
+    {
+      "email": "alp1@gmail.com",
+      "name": "alp alp",
+      "passwordHash": "12345a",
+      "role": "PRESIDENT",
+      "status": "active",
+      "id": "usr_1769687661879_zer881",
+      "createdAt": "2026-01-29T11:54:21.879Z"
+    }
+  ],
+  "units": [
+    {
+      "id": "unit_1",
+      "name": "Operasyon"
+    },
+    {
+      "id": "unit_2",
+      "name": "Mutfak"
+    },
+    {
+      "id": "unit_3",
+      "name": "Temizlik"
+    }
+  ],
+  "sessions": [],
+  "auditLogs": [
+    {
+      "actorId": "usr_1769685746264_tif0bo",
+      "action": "LOGIN",
+      "module": "auth",
+      "entityType": "session",
+      "ip": "::ffff:192.168.1.100",
+      "metadata": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+        "stateless": true
+      },
+      "id": "aud_1769685746267_9h118i",
+      "createdAt": "2026-01-29T11:22:26.267Z"
+    },
+    {
+      "actorId": "usr_1769686356265_sw5h7z",
+      "action": "LOGIN",
+      "module": "auth",
+      "entityType": "session",
+      "ip": "::ffff:192.168.1.100",
+      "metadata": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+        "stateless": true
+      },
+      "id": "aud_1769686356269_lpnd1i",
+      "createdAt": "2026-01-29T11:32:36.269Z"
+    },
+    {
+      "actorId": "usr_1769686558986_4x1x95",
+      "action": "LOGIN",
+      "module": "auth",
+      "entityType": "session",
+      "ip": "::ffff:192.168.1.100",
+      "metadata": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+        "stateless": true
+      },
+      "id": "aud_1769686558989_079y7g",
+      "createdAt": "2026-01-29T11:35:58.989Z"
+    },
+    {
+      "actorId": "usr_1769686691703_b8p9nd",
+      "action": "LOGIN",
+      "module": "auth",
+      "entityType": "session",
+      "ip": "::ffff:192.168.1.100",
+      "metadata": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+        "stateless": true
+      },
+      "id": "aud_1769686691706_glrwmn",
+      "createdAt": "2026-01-29T11:38:11.706Z"
+    },
+    {
+      "actorId": "usr_1769686912769_5ukr0n",
+      "action": "LOGIN",
+      "module": "auth",
+      "entityType": "session",
+      "ip": "::ffff:192.168.1.100",
+      "metadata": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+        "stateless": true
+      },
+      "id": "aud_1769686912771_pqlem0",
+      "createdAt": "2026-01-29T11:41:52.771Z"
+    },
+    {
+      "actorId": "usr_1769687078813_nl8j75",
+      "action": "LOGIN",
+      "module": "auth",
+      "entityType": "session",
+      "ip": "::ffff:192.168.1.100",
+      "metadata": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+        "stateless": true
+      },
+      "id": "aud_1769687078818_mzm7ow",
+      "createdAt": "2026-01-29T11:44:38.818Z"
+    },
+    {
+      "actorId": "usr_1769687661879_zer881",
+      "action": "LOGIN",
+      "module": "auth",
+      "entityType": "session",
+      "ip": "::ffff:192.168.1.100",
+      "metadata": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+        "stateless": true
+      },
+      "id": "aud_1769687661885_dajp10",
+      "createdAt": "2026-01-29T11:54:21.885Z"
+    },
+    {
+      "actorId": "usr_1769687661879_zer881",
+      "action": "LOGIN",
+      "module": "auth",
+      "entityType": "session",
+      "ip": "::ffff:192.168.1.100",
+      "metadata": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+        "stateless": true
+      },
+      "id": "aud_1769687670680_vt2jg7",
+      "createdAt": "2026-01-29T11:54:30.680Z"
+    },
+    {
+      "actorId": "usr_1769687661879_zer881",
+      "action": "LOGIN",
+      "module": "auth",
+      "entityType": "session",
+      "ip": "::ffff:192.168.1.100",
+      "metadata": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+        "stateless": true
+      },
+      "id": "aud_1769687689111_6y9au2",
+      "createdAt": "2026-01-29T11:54:49.111Z"
+    },
+    {
+      "actorId": "usr_1769687078813_nl8j75",
+      "action": "CREATE",
+      "module": "vehicles",
+      "entityType": "vehicle",
+      "entityId": "veh_1769687756323_68ado5",
+      "unitId": "",
+      "ip": "::ffff:192.168.1.100",
+      "metadata": {
+        "plate": "38 AB 123"
+      },
+      "id": "aud_1769687756325_sezto3",
+      "createdAt": "2026-01-29T11:55:56.325Z"
+    },
+    {
+      "actorId": "usr_1769687078813_nl8j75",
+      "action": "CREATE",
+      "module": "vehicles",
+      "entityType": "vehicle_request",
+      "entityId": "asg_1769687770317_wx8gwg",
+      "unitId": "",
+      "ip": "::ffff:192.168.1.100",
+      "metadata": {
+        "vehicleId": "veh_1769687756323_68ado5"
+      },
+      "id": "aud_1769687770320_b6zrr5",
+      "createdAt": "2026-01-29T11:56:10.320Z"
+    },
+    {
+      "actorId": "usr_president",
+      "action": "LOGIN",
+      "module": "auth",
+      "entityType": "session",
+      "ip": "::ffff:192.168.1.100",
+      "metadata": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+        "stateless": true
+      },
+      "id": "aud_1769690435286_vnvw6f",
+      "createdAt": "2026-01-29T12:40:35.286Z"
+    }
+  ],
+  "vehicles": [
+    {
+      "id": "veh_1",
+      "plate": "34 ABC 123",
+      "model": "Ford Transit",
+      "status": "available",
+      "km": 45000,
+      "unitId": "unit_1",
+      "insuranceExpiry": "2026-06-15",
+      "inspectionExpiry": "2026-03-20",
+      "createdAt": "2026-01-29T11:19:33.831Z"
+    },
+    {
+      "id": "veh_2",
+      "plate": "34 XYZ 456",
+      "model": "Fiat Doblo",
+      "status": "in_use",
+      "km": 78000,
+      "unitId": "unit_2",
+      "insuranceExpiry": "2026-02-10",
+      "inspectionExpiry": "2026-04-05",
+      "createdAt": "2026-01-29T11:19:33.831Z"
+    },
+    {
+      "plate": "38 AB 123",
+      "model": "Ford",
+      "km": 1,
+      "status": "available",
+      "insuranceExpiry": "",
+      "inspectionExpiry": "",
+      "unitId": "",
+      "id": "veh_1769687756323_68ado5",
+      "createdAt": "2026-01-29T11:55:56.323Z"
+    }
+  ],
+  "vehicleAssignments": [
+    {
+      "id": "asg_1",
+      "vehicleId": "veh_1",
+      "requesterId": "usr_staff1",
+      "status": "pending",
+      "purpose": "Malzeme taşıma",
+      "createdAt": "2026-01-29T09:19:33.831Z"
+    },
+    {
+      "id": "asg_2",
+      "vehicleId": "veh_2",
+      "requesterId": "usr_staff1",
+      "approverId": "usr_president",
+      "status": "in_progress",
+      "startTime": "2026-01-29T08:19:33.831Z",
+      "startKm": 78000,
+      "purpose": "Yemek dağıtımı",
+      "createdAt": "2026-01-29T07:19:33.831Z"
+    },
+    {
+      "vehicleId": "veh_1769687756323_68ado5",
+      "requesterId": "usr_1769687078813_nl8j75",
+      "status": "pending",
+      "purpose": "ihtiyac",
+      "startTime": "2026-01-30T16:58",
+      "id": "asg_1769687770317_wx8gwg",
+      "createdAt": "2026-01-29T11:56:10.317Z"
+    }
+  ],
+  "maintenanceTickets": [
+    {
+      "id": "tkt_1",
+      "vehicleId": "veh_1",
+      "type": "repair",
+      "priority": "high",
+      "status": "open",
+      "notes": "Motor arızası",
+      "createdAt": "2026-01-29T10:19:33.831Z"
+    }
+  ],
+  "inventoryItems": [
+    {
+      "id": "inv_1",
+      "depotType": "cleaning",
+      "name": "Deterjan (5L)",
+      "unit": "adet",
+      "minLevel": 10,
+      "currentLevel": 25
+    },
+    {
+      "id": "inv_2",
+      "depotType": "cleaning",
+      "name": "Çöp Poşeti",
+      "unit": "paket",
+      "minLevel": 20,
+      "currentLevel": 8
+    },
+    {
+      "id": "inv_3",
+      "depotType": "food",
+      "name": "Pirinç",
+      "unit": "kg",
+      "minLevel": 50,
+      "currentLevel": 120
+    },
+    {
+      "id": "inv_4",
+      "depotType": "food",
+      "name": "Ayçiçek Yağı (5L)",
+      "unit": "adet",
+      "minLevel": 15,
+      "currentLevel": 30
+    }
+  ],
+  "inventoryTxns": [
+    {
+      "id": "itx_1",
+      "itemId": "inv_1",
+      "type": "out",
+      "depotType": "cleaning",
+      "qty": 5,
+      "requestedBy": "usr_staff1",
+      "approvedBy": "usr_manager1",
+      "approvalStatus": "approved",
+      "unitId": "unit_1",
+      "notes": "Temizlik malzemesi çıkışı",
+      "createdAt": "2026-01-29T11:04:33.831Z"
+    }
+  ],
+  "mealTxns": [],
+  "leaveRequests": [
+    {
+      "id": "lev_1",
+      "userId": "usr_staff1",
+      "startDate": "2026-02-05",
+      "endDate": "2026-02-10",
+      "days": 5,
+      "reason": "Yıllık izin",
+      "status": "pending",
+      "createdAt": "2026-01-28T11:19:33.831Z"
+    },
+    {
+      "id": "lev_2",
+      "userId": "usr_manager1",
+      "startDate": "2026-03-01",
+      "endDate": "2026-03-03",
+      "days": 2,
+      "reason": "Mazeret izni",
+      "status": "approved",
+      "approverId": "usr_president",
+      "createdAt": "2026-01-29T09:19:33.831Z"
+    }
+  ],
+  "trainingLogs": []
+}

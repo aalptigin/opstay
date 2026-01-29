@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifySession, getClientIp } from "@/lib/org/session";
 import { getMealOverview, getTodayDate } from "@/lib/meals/store";
 
-export const runtime = "edge";
+// export const runtime = "edge";
 
 // GET /api/meals/overview?date=YYYY-MM-DD
 export async function GET(request: NextRequest) {

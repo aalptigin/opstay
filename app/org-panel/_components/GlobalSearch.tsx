@@ -4,7 +4,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { getVehicles, getInventoryItems, getUsers } from "@/lib/org/db";
+// import { getVehicles, getInventoryItems, getUsers } from "@/lib/org/db"; // REMOVED to fix fs import error
+import type { Vehicle, InventoryItem, User } from "@/lib/org/types"; // Import only types
 
 interface SearchResult {
     id: string;
@@ -24,8 +25,29 @@ export function GlobalSearch({ placeholder = "Ara..." }: GlobalSearchProps) {
     const [results, setResults] = useState<SearchResult[]>([]);
     const [isOpen, setIsOpen] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(0);
+    const [data, setData] = useState<{ vehicles: Vehicle[], inventory: InventoryItem[], users: User[] } | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Fetch data once on mount (or when search opens) to avoid frequent requests
+    // Ideally we should use a proper search API, but for now we'll fetch all and filter client-side
+    // matching the previous behavior but safely.
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const res = await fetch("/api/org/search");
+                if (res.ok) {
+                    const json = await res.json();
+                    if (json.ok) {
+                        setData(json.data);
+                    }
+                }
+            } catch (err) {
+                console.error("Search API error", err);
+            }
+        };
+        fetchData();
+    }, []);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -38,9 +60,9 @@ export function GlobalSearch({ placeholder = "Ara..." }: GlobalSearchProps) {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // Search logic (client-side for now)
+    // Search logic (client-side filtering of fetched data)
     useEffect(() => {
-        if (!query.trim()) {
+        if (!query.trim() || !data) {
             setResults([]);
             setIsOpen(false);
             return;
@@ -50,11 +72,10 @@ export function GlobalSearch({ placeholder = "Ara..." }: GlobalSearchProps) {
         const searchResults: SearchResult[] = [];
 
         // Search vehicles
-        const vehicles = getVehicles();
-        vehicles
-            .filter((v) => v.plate.toLowerCase().includes(lowerQuery) || v.model.toLowerCase().includes(lowerQuery))
+        data.vehicles
+            .filter((v: Vehicle) => v.plate.toLowerCase().includes(lowerQuery) || v.model.toLowerCase().includes(lowerQuery))
             .slice(0, 3)
-            .forEach((v) => {
+            .forEach((v: Vehicle) => {
                 searchResults.push({
                     id: v.id,
                     type: "vehicle",
@@ -66,11 +87,10 @@ export function GlobalSearch({ placeholder = "Ara..." }: GlobalSearchProps) {
             });
 
         // Search inventory
-        const inventory = getInventoryItems();
-        inventory
-            .filter((i) => i.name.toLowerCase().includes(lowerQuery))
+        data.inventory
+            .filter((i: InventoryItem) => i.name.toLowerCase().includes(lowerQuery))
             .slice(0, 3)
-            .forEach((i) => {
+            .forEach((i: InventoryItem) => {
                 searchResults.push({
                     id: i.id,
                     type: "inventory",
@@ -82,11 +102,10 @@ export function GlobalSearch({ placeholder = "Ara..." }: GlobalSearchProps) {
             });
 
         // Search users
-        const users = getUsers();
-        users
-            .filter((u) => u.name.toLowerCase().includes(lowerQuery) || u.email.toLowerCase().includes(lowerQuery))
+        data.users
+            .filter((u: User) => u.name.toLowerCase().includes(lowerQuery) || u.email.toLowerCase().includes(lowerQuery))
             .slice(0, 3)
-            .forEach((u) => {
+            .forEach((u: User) => {
                 searchResults.push({
                     id: u.id,
                     type: "user",
@@ -100,7 +119,7 @@ export function GlobalSearch({ placeholder = "Ara..." }: GlobalSearchProps) {
         setResults(searchResults);
         setIsOpen(searchResults.length > 0);
         setSelectedIndex(0);
-    }, [query]);
+    }, [query, data]);
 
     // Keyboard navigation
     const handleKeyDown = (e: React.KeyboardEvent) => {

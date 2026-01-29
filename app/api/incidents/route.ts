@@ -10,7 +10,7 @@ import {
 } from "@/lib/incidents/store";
 import { createAuditLog } from "@/lib/org/db";
 
-export const runtime = "edge";
+// export const runtime = "edge";
 
 // GET /api/incidents - List incidents with filters
 export async function GET(request: NextRequest) {

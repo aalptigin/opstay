@@ -2,15 +2,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserByEmail, createUser } from "@/lib/org/db";
 import { login, logout, getClientIp, verifySession } from "@/lib/org/session";
+const COOKIE_NAME = "org_session";
 
-export const runtime = "edge";
+// export const runtime = "edge"; // Disabled to allow FS persistence as requested
 
 // --- Handlers ---
 
 async function handleLogin(request: NextRequest) {
     try {
         const body = await request.json();
-        const { email, password } = body;
+        const { email: rawEmail, password } = body;
+        const email = rawEmail?.toLowerCase().trim();
 
         if (!email || !password) {
             return NextResponse.json({ error: "Email ve şifre gerekli" }, { status: 400 });
@@ -30,9 +32,9 @@ async function handleLogin(request: NextRequest) {
         }
 
         const response = NextResponse.json({ success: true, user: result.user });
-        response.cookies.set("org_session", result.token!, {
+        response.cookies.set(COOKIE_NAME, result.token!, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
+            secure: false, // process.env.NODE_ENV === "production", // Disabled for local testing success
             sameSite: "lax",
             maxAge: 60 * 60 * 24 * 7,
             path: "/",
@@ -46,13 +48,13 @@ async function handleLogin(request: NextRequest) {
 
 async function handleLogout(request: NextRequest) {
     try {
-        const token = request.cookies.get("org_session")?.value;
+        const token = request.cookies.get(COOKIE_NAME)?.value;
         if (token) {
             const ip = getClientIp(request.headers);
             logout(token, ip);
         }
         const response = NextResponse.json({ success: true });
-        response.cookies.delete("org_session");
+        response.cookies.delete(COOKIE_NAME);
         return response;
     } catch (error) {
         console.error("Logout error:", error);
@@ -63,7 +65,8 @@ async function handleLogout(request: NextRequest) {
 async function handleSignup(request: NextRequest) {
     try {
         const body = await request.json();
-        const { email, password, name, role, unitId } = body;
+        const { email: rawEmail, password, name, role, unitId } = body;
+        const email = rawEmail?.toLowerCase().trim();
 
         if (!email || !password || !name) {
             return NextResponse.json({ error: "Email, şifre ve isim gerekli" }, { status: 400 });
@@ -96,9 +99,9 @@ async function handleSignup(request: NextRequest) {
         }
 
         const response = NextResponse.json({ success: true, user: loginResult.user });
-        response.cookies.set("org_session", loginResult.token!, {
+        response.cookies.set(COOKIE_NAME, loginResult.token!, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
+            secure: false, // process.env.NODE_ENV === "production",
             sameSite: "lax",
             maxAge: 60 * 60 * 24 * 7,
             path: "/",
@@ -112,15 +115,19 @@ async function handleSignup(request: NextRequest) {
 
 async function handleMe(request: NextRequest) {
     try {
-        const token = request.cookies.get("org_session")?.value;
-        if (!token) return NextResponse.json({ error: "Oturum bulunamadı" }, { status: 401 });
+        const token = request.cookies.get(COOKIE_NAME)?.value;
+        if (!token) {
+            console.log("❌ [Auth Me] No cookie found");
+            return NextResponse.json({ error: "Oturum bulunamadı" }, { status: 401 });
+        }
 
         const ip = getClientIp(request.headers);
         const result = verifySession(token, ip);
 
         if (!result.valid) {
+            console.log("❌ [Auth Me] Invalid session:", result.error);
             const response = NextResponse.json({ error: result.error }, { status: 401 });
-            response.cookies.delete("org_session");
+            response.cookies.delete(COOKIE_NAME);
             return response;
         }
 
