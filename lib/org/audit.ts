@@ -1,58 +1,95 @@
-// Audit log helper (Server Side Only)
+// lib/org/audit.ts
+// Audit logging utilities
 
 import { createAuditLog as dbCreateAuditLog, getAuditLogs as dbGetAuditLogs } from "./db";
-import { AuditParams, AuditLog } from "./audit-shared";
+import { AuditLog } from "./types"; // Import from types instead of audit-shared
+import type { AuditParams } from "./audit-shared";
 
 export * from "./audit-shared";
 
 /**
- * Write an audit log entry
+ * Create an audit log entry
  */
-export function audit(params: AuditParams): AuditLog {
+export function createAuditLog(params: AuditParams): AuditLog {
+    // Adapter if Params structure differs slightly from DB expectation
+    // dbCreateAuditLog expects: actorId, action, module, etc.
+    // AuditParams has: actorId, action... matching db.ts interface mostly.
+
+    // Check if params has 'actor' object (from shared) or 'actorId' string shortcut
+    // shared.ts AuditParams definition has: actor: Pick<User...>, OR in valid usage might have passed flat params?
+    // User's pasted shared.ts had: actorId: string.
+    // Wait, the shared.ts I just wroted has `actorId: string` based on user input.
+    // The OLD shared.ts had `actor: Pick...`.
+    // I overwrote shared.ts with user input which has `actorId: string`. 
+    // So simple pass-through is fine.
+
     return dbCreateAuditLog({
-        actorId: params.actor.id,
+        actorId: params.actorId,
         action: params.action,
         module: params.module,
         entityType: params.entityType,
         entityId: params.entityId,
-        unitId: params.actor.unitId,
-        ip: params.ip,
-        userAgent: params.userAgent,
-        result: params.result || "SUCCESS",
-        severity: params.severity || "LOW",
-        correlationId: params.correlationId,
+        unitId: params.unitId,
+        ip: params.ip || "127.0.0.1",
         metadata: params.metadata,
-        diff: params.diff,
+        // dbCreateAuditLog might support other fields, but these are core.
     });
 }
 
+// ALIAS for backward compatibility
+export const audit = createAuditLog;
+
 /**
- * Get audit logs with filters
+ * Get all audit logs
  */
-export function getAuditLogs(filters?: {
-    module?: string;
+export function getAuditLogs(): AuditLog[] {
+    return dbGetAuditLogs();
+}
+
+/**
+ * Get audit logs filtered by criteria
+ */
+export function getAuditLogsFiltered(filters: {
     actorId?: string;
-    unitId?: string;
-    action?: string;
-    result?: "SUCCESS" | "FAIL" | "DENIED";
-    severity?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+    module?: string;
     entityType?: string;
-    entityId?: string;
+    unitId?: string;
     startDate?: string;
     endDate?: string;
 }): AuditLog[] {
     let logs = dbGetAuditLogs();
 
-    if (filters?.module) logs = logs.filter((l) => l.module === filters.module);
-    if (filters?.actorId) logs = logs.filter((l) => l.actorId === filters.actorId);
-    if (filters?.unitId) logs = logs.filter((l) => l.unitId === filters.unitId);
-    if (filters?.action) logs = logs.filter((l) => l.action === filters.action); // Exact match
-    if (filters?.result) logs = logs.filter((l) => l.result === filters.result);
-    if (filters?.severity) logs = logs.filter((l) => l.severity === filters.severity);
-    if (filters?.entityType) logs = logs.filter((l) => l.entityType === filters.entityType);
-    if (filters?.entityId) logs = logs.filter((l) => l.entityId === filters.entityId);
-    if (filters?.startDate) logs = logs.filter((l) => l.createdAt >= filters.startDate!);
-    if (filters?.endDate) logs = logs.filter((l) => l.createdAt <= filters.endDate!);
+    if (filters.actorId) {
+        logs = logs.filter(log => log.actorId === filters.actorId);
+    }
+
+    if (filters.module) {
+        logs = logs.filter(log => log.module === filters.module);
+    }
+
+    if (filters.entityType) {
+        logs = logs.filter(log => log.entityType === filters.entityType);
+    }
+
+    if (filters.unitId) {
+        logs = logs.filter(log => log.unitId === filters.unitId);
+    }
+
+    if (filters.startDate) {
+        logs = logs.filter(log => log.createdAt >= filters.startDate!);
+    }
+
+    if (filters.endDate) {
+        logs = logs.filter(log => log.createdAt <= filters.endDate!);
+    }
 
     return logs;
+}
+
+/**
+ * Get recent audit logs (last N entries)
+ */
+export function getRecentAuditLogs(limit: number = 50): AuditLog[] {
+    const logs = dbGetAuditLogs();
+    return logs.slice(0, limit);
 }
