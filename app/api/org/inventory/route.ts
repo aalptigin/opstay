@@ -79,7 +79,8 @@ export async function POST(request: NextRequest) {
             });
 
             audit({
-                actor: { id: user.id, unitId: user.unitId },
+                actorId: user.id,
+                unitId: user.unitId,
                 action: "CREATE",
                 module: "inventory",
                 entityType: "transaction",
@@ -106,7 +107,8 @@ export async function POST(request: NextRequest) {
             });
 
             audit({
-                actor: { id: user.id, unitId: user.unitId },
+                actorId: user.id,
+                unitId: user.unitId,
                 action: "CREATE",
                 module: "inventory",
                 entityType: "item",
