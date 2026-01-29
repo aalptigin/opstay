@@ -1,26 +1,32 @@
-// Leave Management Types
 
+// Re-export core types to ensure single source of truth
+import { LeaveRequest as CoreLeaveRequest } from "@/lib/org/types";
+
+// Enums/Constants for Schema & Frontend
+// These were missing after unification, causing Schema errors.
 export enum LeaveType {
-    ANNUAL = "ANNUAL",       // Yıllık İzin
-    SICK = "SICK",           // Hastalık
-    EXCUSE = "EXCUSE",       // Mazeret
-    UNPAID = "UNPAID",       // Ücretsiz
-    OTHER = "OTHER"          // Diğer
-}
-
-export enum LeaveStatus {
-    PENDING = "PENDING",             // Bekliyor
-    APPROVED = "APPROVED",           // Onaylandı
-    REJECTED = "REJECTED",           // Reddedildi
-    CANCELLED = "CANCELLED",         // İptal Edildi (Kullanıcı tarafından)
-    NEEDS_CHANGES = "NEEDS_CHANGES", // Düzeltme İsteniyor
+    ANNUAL = "ANNUAL",
+    SICK = "SICK",
+    EXCUSE = "EXCUSE",
+    UNPAID = "UNPAID",
+    OTHER = "OTHER"
 }
 
 export enum DayPart {
-    FULL = "FULL", // Tam gün
-    AM = "AM",     // Sabah yarım
-    PM = "PM",     // Öğleden sonra yarım
+    FULL = "FULL",
+    AM = "AM",
+    PM = "PM"
 }
+
+export const LeaveStatus = {
+    PENDING: "pending",
+    APPROVED: "approved",
+    REJECTED: "rejected",
+    CANCELLED: "cancelled",
+    NEEDS_CHANGES: "needs_changes"
+} as const;
+
+export type LeaveStatus = typeof LeaveStatus[keyof typeof LeaveStatus];
 
 export const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
     [LeaveType.ANNUAL]: "Yıllık İzin",
@@ -28,22 +34,6 @@ export const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
     [LeaveType.EXCUSE]: "Mazeret İzni",
     [LeaveType.UNPAID]: "Ücretsiz İzin",
     [LeaveType.OTHER]: "Diğer",
-};
-
-export const LEAVE_STATUS_LABELS: Record<LeaveStatus, string> = {
-    [LeaveStatus.PENDING]: "Onay Bekliyor",
-    [LeaveStatus.APPROVED]: "Onaylandı",
-    [LeaveStatus.REJECTED]: "Reddedildi",
-    [LeaveStatus.CANCELLED]: "İptal Edildi",
-    [LeaveStatus.NEEDS_CHANGES]: "Düzeltme İsteniyor",
-};
-
-export const LEAVE_STATUS_COLORS: Record<LeaveStatus, string> = {
-    [LeaveStatus.PENDING]: "bg-amber-100 text-amber-700",
-    [LeaveStatus.APPROVED]: "bg-green-100 text-green-700",
-    [LeaveStatus.REJECTED]: "bg-red-100 text-red-700",
-    [LeaveStatus.CANCELLED]: "bg-slate-100 text-slate-600",
-    [LeaveStatus.NEEDS_CHANGES]: "bg-indigo-100 text-indigo-700",
 };
 
 export interface LeaveBalance {
@@ -59,42 +49,15 @@ export interface LeaveBalance {
     updatedAt: string;
 }
 
-export interface LeaveApproval {
-    id: string;
-    requestId: string;
-    approverUserId: string;
-    approverName: string;
-    decision: "APPROVED" | "REJECTED" | "CHANGES_REQUESTED";
-    note?: string;
-    decidedAt: string;
-}
-
-export interface LeaveRequest {
-    id: string;
-    requestNo: string;
-    personId: string;
-    personName: string;
-    unitId?: string;
+// Extend Core Type to satisfy Frontend expectations (optional fields)
+export interface LeaveRequest extends CoreLeaveRequest {
+    type?: LeaveType; // Optional in DB, required in Frontend form?
+    requestNo?: string;
+    personName?: string;
     unitName?: string;
-
-    type: LeaveType;
-    startDate: string; // YYYY-MM-DD
-    startPart: DayPart;
-    endDate: string;   // YYYY-MM-DD
-    endPart: DayPart;
-    totalDays: number;
-
-    description: string;
-    attachmentUrl?: string;
-
-    status: LeaveStatus;
-
-    approvals: LeaveApproval[];
-    rejectionReason?: string;
-
-    createdAt: string;
-    updatedAt: string;
-    createdByUserId: string;
+    startPart?: DayPart;
+    endPart?: DayPart;
+    description?: string; // Maps to 'reason' in Core?
 }
 
 export interface LeaveOverviewPayload {
@@ -105,7 +68,7 @@ export interface LeaveOverviewPayload {
         conflictsCount: number;
     };
     requests: LeaveRequest[];
-    balances: LeaveBalance[]; // Only visible ones
+    balances: LeaveBalance[];
     permissions: {
         canCreate: boolean;
         canApprove: boolean;
