@@ -264,9 +264,9 @@ export default function PanelPage() {
       try {
         const [meRes, rezRes, reqRes, recRes] = await Promise.all([
           fetch("/api/auth/me", { cache: "no-store" }).catch(() => null),
-          fetch("/api/reservations", { cache: "no-store" }),
-          fetch("/api/requests", { cache: "no-store" }).catch(() => null),
-          fetch("/api/records", { cache: "no-store" }).catch(() => null),
+          fetch("/api/panel/core/reservations", { cache: "no-store" }),
+          fetch("/api/panel/core/requests", { cache: "no-store" }).catch(() => null),
+          fetch("/api/panel/core/records", { cache: "no-store" }).catch(() => null),
         ]);
 
         // me
@@ -469,7 +469,7 @@ export default function PanelPage() {
       let matches: any[] = [];
 
       try {
-        const res = await fetch("/api/records/check", {
+        const res = await fetch("/api/panel/core/records/check", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify(body),

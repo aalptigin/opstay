@@ -427,7 +427,7 @@ export default function IstatistiklerHappyMoonsPage() {
     setLoading(true);
     setErr("");
     try {
-      const [resRows, recRows] = await Promise.all([fetchRows("/api/reservations"), fetchRows("/api/records")]);
+      const [resRows, recRows] = await Promise.all([fetchRows("/api/panel/core/reservations"), fetchRows("/api/panel/core/records")]);
       setReservations(resRows);
       setRecords(recRows);
 

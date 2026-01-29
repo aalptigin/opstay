@@ -101,7 +101,7 @@ export default function KayitKontrolPage() {
       const d = isoSearchDate;
       if (!d) throw new Error("Tarih girin.");
 
-      const res = await fetch("/api/records", { cache: "no-store" });
+      const res = await fetch("/api/panel/core/records", { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Kayıtlar alınamadı");
 
@@ -189,7 +189,7 @@ export default function KayitKontrolPage() {
         full_name: guestFullName.trim(),
       };
 
-      const res = await fetch("/api/records/check", {
+      const res = await fetch("/api/panel/core/records/check", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(payload),
@@ -492,7 +492,7 @@ export default function KayitKontrolPage() {
                 Teknik detay (ham çıktı)
               </summary>
               <pre className="mt-3 text-xs text-white/70 whitespace-pre-wrap">
-{JSON.stringify(resolved.raw, null, 2)}
+                {JSON.stringify(resolved.raw, null, 2)}
               </pre>
             </details>
           </div>

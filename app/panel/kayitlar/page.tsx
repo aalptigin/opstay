@@ -193,7 +193,7 @@ export default function Page() {
       setErr("");
 
       try {
-        const r1 = await fetch("/api/records", { cache: "no-store" });
+        const r1 = await fetch("/api/panel/core/records", { cache: "no-store" });
         const j1 = await r1.json();
 
         if (!r1.ok) throw new Error(j1?.error || "Kayıtlar alınamadı");
@@ -222,7 +222,7 @@ export default function Page() {
     setRefreshing(true);
     setErr("");
     try {
-      const r1 = await fetch("/api/records", { cache: "no-store" });
+      const r1 = await fetch("/api/panel/core/records", { cache: "no-store" });
       const j1 = await r1.json();
       if (!r1.ok) throw new Error(j1?.error || "Kayıtlar alınamadı");
 

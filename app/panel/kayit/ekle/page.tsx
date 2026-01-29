@@ -117,7 +117,7 @@ export default function KayitEklePage() {
         risk_level: riskLevel,
       };
 
-      const res = await fetch("/api/records", {
+      const res = await fetch("/api/panel/core/records", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(payload),

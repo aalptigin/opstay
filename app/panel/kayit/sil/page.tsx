@@ -86,7 +86,7 @@ export default function KayitSilPage() {
 
   async function load() {
     setMsg(null);
-    const res = await fetch("/api/records", { cache: "no-store" });
+    const res = await fetch("/api/panel/core/records", { cache: "no-store" });
     const data = await res.json();
     if (res.ok) setRows(data.rows || []);
     else setMsg(data?.error || "Liste alınamadı");
@@ -151,7 +151,7 @@ export default function KayitSilPage() {
 
   async function del(record_id: string) {
     setMsg(null);
-    const res = await fetch("/api/records", {
+    const res = await fetch("/api/panel/core/records", {
       method: "DELETE",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ record_id }),

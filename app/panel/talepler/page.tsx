@@ -178,7 +178,7 @@ export default function TaleplerPage() {
     setLoading(true);
     setMsg(null);
     try {
-      const res = await fetch("/api/requests", { cache: "no-store" });
+      const res = await fetch("/api/panel/core/requests", { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Talepler alınamadı");
 
@@ -245,7 +245,7 @@ export default function TaleplerPage() {
 
     setSavingCreate(true);
     try {
-      const res = await fetch("/api/requests", {
+      const res = await fetch("/api/panel/core/requests", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -286,7 +286,7 @@ export default function TaleplerPage() {
     setMsg(null);
     setSavingRespond(true);
     try {
-      const res = await fetch("/api/requests/respond", {
+      const res = await fetch("/api/panel/core/requests/respond", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({

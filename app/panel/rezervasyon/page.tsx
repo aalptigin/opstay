@@ -407,7 +407,7 @@ export default function ReservationsPage() {
     setMsg(null);
     setListLoading(true);
     try {
-      const res = await fetch("/api/reservations", { cache: "no-store" });
+      const res = await fetch("/api/panel/core/reservations", { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Rezervasyonlar alınamadı");
       setRows(Array.isArray(data.rows) ? data.rows : []);
@@ -511,7 +511,7 @@ export default function ReservationsPage() {
 
     setLookupLoading(true);
     try {
-      const res = await fetch("/api/blacklist/check", {
+      const res = await fetch("/api/panel/core/records/check", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ full_name: n, phone: p }),
@@ -593,7 +593,7 @@ export default function ReservationsPage() {
       payload.kids_u7 = kids;
       payload.child_u7 = kids;
 
-      const res = await fetch("/api/reservations", {
+      const res = await fetch("/api/panel/core/reservations", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(payload),
