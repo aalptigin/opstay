@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifySession, getClientIp } from "@/lib/org/session";
 import { createAuditLog } from "@/lib/org/db";
 import { updateLeaveStatus } from "@/lib/leave/store";
-import { LeaveStatus } from "@/lib/leave/types";
 import { RejectLeaveSchema } from "@/lib/leave/schema";
 
-// export const runtime = "edge"; // Disabled to allow FS persistence Using Node.js runtime
+export const runtime = "edge"; // Edge Runtime enabled for Cloudflare
 
 // POST /api/leave/requests/[id]/reject
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -17,9 +16,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         const ip = getClientIp(request.headers);
         const session = verifySession(token, ip);
         if (!session.valid || !session.user) return NextResponse.json({ ok: false, error: session.error }, { status: 401 });
+
         const user = session.user;
 
-        // RBAC
+        // RBAC - Only PRESIDENT and UNIT_MANAGER can reject
         if (!["PRESIDENT", "UNIT_MANAGER"].includes(user.role)) {
             return NextResponse.json({ ok: false, error: "Yetkisiz işlem" }, { status: 403 });
         }
@@ -28,7 +28,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         const parsed = RejectLeaveSchema.safeParse(body);
         if (!parsed.success) return NextResponse.json({ ok: false, error: "Geçersiz veri", details: parsed.error.issues }, { status: 400 });
 
-        const req = updateLeaveStatus(id, LeaveStatus.REJECTED, { id: user.id, name: user.name }, parsed.data.reason);
+        // FIXED: Only 3 parameters - id, status (string), approverId
+        const req = updateLeaveStatus(id, "rejected", user.id);
 
         createAuditLog({
             actorId: user.id,
