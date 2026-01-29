@@ -4,7 +4,7 @@ import { getUserByEmail, createUser } from "@/lib/org/db";
 import { login, logout, getClientIp, verifySession } from "@/lib/org/session";
 const COOKIE_NAME = "org_session";
 
-// export const runtime = "edge"; // Disabled to allow FS persistence as requested
+export const runtime = "edge"; // Disabled to allow FS persistence as requested
 
 // --- Handlers ---
 

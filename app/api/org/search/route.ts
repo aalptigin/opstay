@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifySession, getClientIp } from "@/lib/org/session";
 import { getVehicles, getInventoryItems, getUsers } from "@/lib/org/db";
 
+export const runtime = "edge";
+
 export async function GET(request: NextRequest) {
     try {
         const token = request.cookies.get("org_session")?.value;

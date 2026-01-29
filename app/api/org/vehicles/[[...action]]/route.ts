@@ -5,7 +5,7 @@ import { verifySession, getClientIp } from "@/lib/org/session";
 import { canAccessUnit } from "@/lib/org/rbac";
 import { VehicleStatus } from "@/lib/org/types";
 
-// export const runtime = "edge";
+export const runtime = "edge";
 
 // --- Helpers ---
 const unauthorized = (msg = "Unauthorized") => NextResponse.json({ error: msg }, { status: 401 });

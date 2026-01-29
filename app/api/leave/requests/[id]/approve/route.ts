@@ -5,7 +5,7 @@ import { updateLeaveStatus } from "@/lib/leave/store";
 import { LeaveStatus } from "@/lib/leave/types";
 import { ApproveLeaveSchema } from "@/lib/leave/schema";
 
-// export const runtime = "edge"; // Disabled to allow FS persistence Using Node.js runtime
+export const runtime = "edge";
 
 // POST /api/leave/requests/[id]/approve
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
