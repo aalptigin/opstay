@@ -21,7 +21,7 @@ async function getSession(req: NextRequest) {
     const ip = getClientIp(req.headers);
     const session = verifySession(token, ip);
     if (!session.valid || !session.user) return null;
-    return { ...session, ip };
+    return { user: session.user, ip };
 }
 
 // --- Handlers ---
