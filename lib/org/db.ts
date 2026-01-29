@@ -1,12 +1,9 @@
-// Simple in-memory + localStorage database for development
-// Replace with Prisma/PostgreSQL in production
+// Simple in-memory database for Edge Runtime
+// NO fs/path modules - Edge Runtime compatible
 
 import { User, Unit, Session, AuditLog, Vehicle, VehicleAssignment, MaintenanceTicket, InventoryItem, InventoryTxn, MealTxn, LeaveRequest, TrainingLog } from "./types";
-import fs from "fs";
-import path from "path";
 
 const STORAGE_KEY = "opsstay_org_db";
-const DB_FILE_PATH = "org-db.json";
 
 interface Database {
     users: User[];
@@ -93,7 +90,7 @@ const defaultDb: Database = {
             requesterId: "usr_staff1",
             status: "pending",
             purpose: "Malzeme taşıma",
-            createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+            createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
         },
         {
             id: "asg_2",
@@ -115,7 +112,7 @@ const defaultDb: Database = {
             priority: "high",
             status: "open",
             notes: "Motor arızası",
-            createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), // 1 hour ago
+            createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
         },
     ],
     inventoryItems: [
@@ -136,7 +133,7 @@ const defaultDb: Database = {
             approvalStatus: "approved",
             unitId: "unit_1",
             notes: "Temizlik malzemesi çıkışı",
-            createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(), // 15 mins ago
+            createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
         },
     ],
     mealTxns: [],
@@ -149,7 +146,7 @@ const defaultDb: Database = {
             days: 5,
             reason: "Yıllık izin",
             status: "pending",
-            createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+            createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
         },
         {
             id: "lev_2",
@@ -166,16 +163,10 @@ const defaultDb: Database = {
     trainingLogs: [],
 };
 
-// Use globalThis to persist data across hot reloads in dev
-// This is the recommended pattern for Next.js in-memory stores
+// Use globalThis to persist data across requests in Edge Runtime
 declare global {
     // eslint-disable-next-line no-var
     var __orgDb: Database | undefined;
-}
-
-function getDbFilePath() {
-    // Ensure we are looking at the root of the project
-    return path.join(process.cwd(), DB_FILE_PATH);
 }
 
 function getDb(): Database {
@@ -191,53 +182,13 @@ function getDb(): Database {
         }
         return JSON.parse(JSON.stringify(defaultDb));
     } else {
-        // Server-side: Persistent File Storage (JSON DB)
-        const filePath = getDbFilePath();
-
-        // LOGGING TO DEBUG PERSISTENCE ISSUES
-        console.log("🐛 [DB Debug] Reading DB at:", new Date().toISOString());
-        console.log("🐛 [DB Debug] Path:", filePath);
-
-        // 1. Check if global cache exists (fast path)
-        // DISABLE CACHE FOR DEBUGGING - ALWAYS READ FILE
-        // if (globalThis.__orgDb) {
-        //     return globalThis.__orgDb;
-        // }
-
-        // 2. Try reading from file
-        if (fs.existsSync(filePath)) {
-            try {
-                const fileContent = fs.readFileSync(filePath, "utf-8");
-                if (fileContent.trim()) {
-                    const data = JSON.parse(fileContent);
-                    console.log(`🗄️ [DB] Loaded from file. Users: ${data.users.length}`);
-                    globalThis.__orgDb = data;
-                    return data;
-                }
-            } catch (e) {
-                console.error("❌ [DB] Failed to read db file, resetting:", e);
-            }
-        } else {
-            console.log("⚠️ [DB Debug] File NOT found at path.");
-        }
-
-        // 3. Fallback to cache if file failed?
+        // Server-side: Use global cache (Edge Runtime compatible)
         if (globalThis.__orgDb) {
-            console.log("⚠️ [DB Debug] Falling back to global cache.");
             return globalThis.__orgDb;
         }
 
-        // 4. If no file or error, use default and save it
-        console.log("🗄️ [DB] Initializing new database file (Factory Default)");
+        console.log("🗄️ [DB] Initializing new in-memory database");
         const newDb = JSON.parse(JSON.stringify(defaultDb));
-
-        try {
-            fs.writeFileSync(filePath, JSON.stringify(newDb, null, 2));
-            console.log("✅ [DB] Created new DB file at:", filePath);
-        } catch (e) {
-            console.error("❌ [DB] Failed to write initial db file:", e);
-        }
-
         globalThis.__orgDb = newDb;
         return newDb;
     }
@@ -247,17 +198,9 @@ function saveDb(db: Database): void {
     if (typeof window !== "undefined") {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
     } else {
-        // Server-side: Save to global AND Disk
+        // Server-side: Save to global memory (Edge Runtime compatible)
         globalThis.__orgDb = db;
-
-        try {
-            const filePath = getDbFilePath();
-            console.log("💾 [DB Debug] Saving to:", filePath);
-            fs.writeFileSync(filePath, JSON.stringify(db, null, 2));
-            console.log("💾 [DB] Saved successfully. Users:", db.users.length);
-        } catch (e) {
-            console.error("❌ [DB] Failed to save to file:", e);
-        }
+        console.log("💾 [DB] Saved to memory. Users:", db.users.length);
     }
 }
 
