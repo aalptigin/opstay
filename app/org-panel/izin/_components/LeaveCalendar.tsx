@@ -90,9 +90,9 @@ export function LeaveCalendar({ requests, onSelectDate }: LeaveCalendarProps) {
                                                 ${isStart ? "rounded-l-md ml-0.5" : ""}
                                                 ${isEnd ? "rounded-r-md mr-0.5" : ""}
                                             `}
-                                            title={`${req.personName} - ${req.type}`}
+                                            title={`${req.personName || "Bilinmiyor"} - ${req.type}`}
                                         >
-                                            {req.personName.split(" ")[0]}
+                                            {(req.personName || "Bilinmiyor").split(" ")[0]}
                                         </div>
                                     );
                                 })}

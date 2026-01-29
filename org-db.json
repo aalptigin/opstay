@@ -292,6 +292,19 @@
       },
       "id": "aud_1769725386394_r3n3hq",
       "createdAt": "2026-01-29T22:23:06.394Z"
+    },
+    {
+      "actorId": "usr_president",
+      "action": "LOGIN",
+      "module": "auth",
+      "entityType": "session",
+      "ip": "::ffff:192.168.1.107",
+      "metadata": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+        "stateless": true
+      },
+      "id": "aud_1769726383192_n8xm9s",
+      "createdAt": "2026-01-29T22:39:43.193Z"
     }
   ],
   "vehicles": [
