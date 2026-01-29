@@ -1,28 +1,9 @@
-// Audit log helper
+// Audit log helper (Server Side Only)
 
-import { AuditLog, User } from "./types";
 import { createAuditLog as dbCreateAuditLog, getAuditLogs as dbGetAuditLogs } from "./db";
+import { AuditParams, AuditLog } from "./audit-shared";
 
-export type AuditAction = string;
-
-interface AuditParams {
-    actor: Pick<User, "id" | "unitId">;
-    action: string;
-    module: string;
-    entityType: string;
-    entityId?: string;
-    ip: string;
-    userAgent?: string;
-    result?: "SUCCESS" | "FAIL" | "DENIED";
-    severity?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-    correlationId?: string;
-    metadata?: Record<string, unknown>;
-    diff?: {
-        before?: Record<string, unknown>;
-        after?: Record<string, unknown>;
-        changedKeys?: string[];
-    };
-}
+export * from "./audit-shared";
 
 /**
  * Write an audit log entry
@@ -74,21 +55,4 @@ export function getAuditLogs(filters?: {
     if (filters?.endDate) logs = logs.filter((l) => l.createdAt <= filters.endDate!);
 
     return logs;
-}
-
-/**
- * Get action label in Turkish
- */
-export function getActionLabel(action: string): string {
-    // Common actions
-    if (action.includes("create") || action === "CREATE") return "Oluşturma";
-    if (action.includes("update") || action === "UPDATE") return "Güncelleme";
-    if (action.includes("delete") || action === "DELETE") return "Silme";
-    if (action.includes("approve") || action === "APPROVE") return "Onaylama";
-    if (action.includes("reject") || action === "REJECT") return "Reddetme";
-    if (action.includes("login") || action === "LOGIN") return "Giriş";
-    if (action.includes("logout") || action === "LOGOUT") return "Çıkış";
-
-    // Fallback
-    return action;
 }

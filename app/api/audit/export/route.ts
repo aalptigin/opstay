@@ -5,7 +5,7 @@ import { createAuditLog } from "@/lib/org/db";
 import { AuditExportSchema } from "@/lib/audit/schema";
 import { getAuditLogsQuery } from "@/lib/audit/service";
 
-export const runtime = "edge";
+// export const runtime = "edge"; // Disabled to allow FS persistence
 
 // POST /api/audit/export
 export async function POST(request: NextRequest) {

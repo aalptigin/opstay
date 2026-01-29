@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { User, AuditLog } from "@/lib/org/types";
-import { getActionLabel } from "@/lib/org/audit";
+import { getActionLabel } from "@/lib/org/audit-shared";
 
 const MODULE_LABELS: Record<string, string> = {
     auth: "Kimlik Doğrulama",
@@ -148,11 +148,11 @@ export default function AuditPage() {
                                 </td>
                                 <td className="py-3 px-4">
                                     <span className={`px-2 py-1 rounded text-xs font-medium ${log.action === "LOGIN" ? "bg-emerald-500/20 text-emerald-400" :
-                                            log.action === "LOGOUT" ? "bg-slate-500/20 text-slate-400" :
-                                                log.action === "CREATE" ? "bg-blue-500/20 text-blue-400" :
-                                                    log.action === "UPDATE" ? "bg-amber-500/20 text-amber-400" :
-                                                        log.action === "DELETE" ? "bg-red-500/20 text-red-400" :
-                                                            "bg-purple-500/20 text-purple-400"
+                                        log.action === "LOGOUT" ? "bg-slate-500/20 text-slate-400" :
+                                            log.action === "CREATE" ? "bg-blue-500/20 text-blue-400" :
+                                                log.action === "UPDATE" ? "bg-amber-500/20 text-amber-400" :
+                                                    log.action === "DELETE" ? "bg-red-500/20 text-red-400" :
+                                                        "bg-purple-500/20 text-purple-400"
                                         }`}>
                                         {getActionLabel(log.action)}
                                     </span>
